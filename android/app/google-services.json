@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "448279305397",
+    "project_id": "yyjcpl-job-portal",
+    "storage_bucket": "yyjcpl-job-portal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:448279305397:android:3481d070272afa20f032fc",
+        "android_client_info": {
+          "package_name": "com.yyjcpl.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClxvR_VEEOQ5HU0ntdJA-RQhZTJ02Vkvo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
