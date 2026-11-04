@@ -79,6 +79,74 @@ describe('GET job-seeker jobs filters', () => {
     });
   });
 
+  describe('POST job-seeker jobs save', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test('saves a job with no request body', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue(new Response(null, { status: 204 }));
+      globalThis.fetch = fetchSpy;
+      const store = makeStore();
+
+      await store.dispatch(candidateApi.endpoints.saveJob.initiate({ jobId: '42' })).unwrap();
+
+      const request: Request = fetchSpy.mock.calls[0][0];
+      expect(request.method).toBe('POST');
+      expect(request.url).toMatch(/\/api\/job-seeker\/jobs\/42\/save$/);
+      expect(await request.clone().text()).toBe('');
+      store.dispatch(baseApi.util.resetApiState());
+    });
+  });
+
+  describe('saved jobs', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test('loads saved jobs from a paginated envelope with nested job records', async () => {
+      const fetchSpy = mockFetch({
+        data: {
+          content: [{
+            id: 900,
+            job: {
+              id: 42,
+              companyName: 'Acme Ltd',
+              role: 'Backend Developer',
+              location: 'Bengaluru',
+              salary: '₹8–12 LPA',
+            },
+          }],
+        },
+      });
+      globalThis.fetch = fetchSpy;
+      const store = makeStore();
+      const subscription = store.dispatch(candidateApi.endpoints.getSavedJobs.initiate());
+
+      const jobs = await subscription.unwrap();
+
+      expect(fetchSpy.mock.calls[0][0].url).toMatch(/\/api\/job-seeker\/jobs\/saved$/);
+      expect(jobs).toMatchObject([{
+        id: '42',
+        companyName: 'Acme Ltd',
+        role: 'Backend Developer',
+        location: 'Bengaluru',
+      }]);
+      subscription.unsubscribe();
+      store.dispatch(baseApi.util.resetApiState());
+    });
+
+    test('discards a saved job with DELETE and no request body', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue(new Response(null, { status: 204 }));
+      globalThis.fetch = fetchSpy;
+      const store = makeStore();
+
+      await store.dispatch(candidateApi.endpoints.removeSavedJob.initiate({ jobId: '42' })).unwrap();
+
+      const request: Request = fetchSpy.mock.calls[0][0];
+      expect(request.method).toBe('DELETE');
+      expect(request.url).toMatch(/\/api\/job-seeker\/jobs\/42\/save$/);
+      expect(await request.clone().text()).toBe('');
+      store.dispatch(baseApi.util.resetApiState());
+    });
+  });
+
   describe('GET job-seeker applications', () => {
     afterEach(() => jest.restoreAllMocks());
 
@@ -134,6 +202,35 @@ describe('GET job-seeker jobs filters', () => {
           notes: 'Bring your portfolio',
         },
       });
+    });
+
+    test('normalizes the recruiter interviewAt and details response fields', async () => {
+      globalThis.fetch = mockFetch([{
+        id: 22,
+        jobId: 8,
+        status: 'INTERVIEW_SCHEDULED',
+        job: { title: 'Developer', companyName: 'YYJCPL', location: 'Noida' },
+        interviewDetails: {
+          interviewAt: '05-11-2026 10:30 AM',
+          mode: 'In Person',
+          details: 'Interview at the office.',
+        },
+      }]);
+
+      const store = makeStore();
+      const subscription = store.dispatch(candidateApi.endpoints.getMyApplications.initiate());
+      const applications = await subscription.unwrap();
+
+      expect(applications[0]).toMatchObject({
+        status: 'INTERVIEW_SCHEDULED',
+        interview: {
+          scheduledAt: '05-11-2026 10:30 AM',
+          mode: 'In Person',
+          notes: 'Interview at the office.',
+        },
+      });
+      subscription.unsubscribe();
+      store.dispatch(baseApi.util.resetApiState());
     });
 
     describe('POST job-seeker resume', () => {

@@ -1,13 +1,13 @@
 import React from 'react';
-import { StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { ILLUSTRATIONS } from '../../../assets/illustrations';
 import { AppButton, AppText } from '../../../components/common';
-import { BrandLogo, IllustrationSlot, SplashIllustration } from '../../../components/illustrations';
-import { APP_NAME, APP_TAGLINE } from '../../../constants/app';
+import { IllustrationSlot, SplashIllustration } from '../../../components/illustrations';
+import { APP_TAGLINE } from '../../../constants/app';
 import { ScreenLayout } from '../../../layout';
 import { AuthScreenProps } from '../../../navigation/types';
-import { colors, gradients, scale, spacing, vs } from '../../../theme';
+import { colors, gradients, radius, scale, spacing, vs } from '../../../theme';
 
 /** Splash / welcome – orange gradient, logo, tagline, artwork, Get Started. */
 export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) {
@@ -15,6 +15,7 @@ export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) 
   const artSize = ILLUSTRATIONS.splash
     ? Math.min(width - spacing.lg * 2, height * 0.46, scale(460))
     : Math.min(width * 0.82, height * 0.4, scale(380));
+  const brandSize = Math.min(width * 0.58, scale(240), height * 0.3);
   const stageW = artSize * 0.95;
   const stageH = artSize * 0.14;
 
@@ -29,10 +30,15 @@ export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) 
       {isFocused ? <StatusBar barStyle="light-content" /> : null}
       <View style={styles.container}>
         <View style={styles.brand}>
-          <BrandLogo size={scale(84)} variant="onDark" />
-          <AppText variant="h1" color="textOnPrimary" style={styles.name}>
-            {APP_NAME}
-          </AppText>
+          <View style={[styles.logoCard, { width: brandSize, height: brandSize }]}>
+            <Image
+              source={require('../../../assets/icons/AppIcon.jpeg')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessible
+              accessibilityLabel="YYJCPL company logo"
+            />
+          </View>
           <AppText
             color="textOnPrimary"
             align="center"
@@ -85,10 +91,19 @@ const styles = StyleSheet.create({
     paddingBottom: vs(12),
     paddingHorizontal: spacing.sm,
   },
-  brand: { alignItems: 'center' },
+  brand: { alignItems: 'center', gap: vs(10) },
+  logoCard: {
+    overflow: 'hidden',
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: colors.background,
+    padding: scale(4),
+    boxShadow: `0px ${vs(5)}px ${scale(18)}px rgba(90, 40, 0, 0.2)`,
+  },
+  logo: { width: '100%', height: '100%' },
   art: { alignItems: 'center', justifyContent: 'flex-end' },
   stage: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.2)' },
-  name: { marginTop: vs(16), letterSpacing: 0.5 },
-  tagline: { marginTop: vs(6), opacity: 0.95 },
+  tagline: { opacity: 0.95, paddingHorizontal: spacing.sm },
   button: { width: '100%', maxWidth: scale(520) },
 });

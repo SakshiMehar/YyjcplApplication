@@ -52,6 +52,7 @@ export const baseApi = createApi({
     'Project',
     'Company',
     'Job',
+    'SavedJob',
     'MyJobs',
     'Application',
     'Candidate',

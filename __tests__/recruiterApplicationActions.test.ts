@@ -33,18 +33,18 @@ describe('recruiter application actions', () => {
         path: '/api/recruiter/applications/17/interview',
         run: () => store.dispatch(recruiterApi.endpoints.scheduleApplicationInterview.initiate({
           applicationId: '17',
-          scheduledAt: '2026-11-02T09:00:00.000Z',
-          mode: 'VIDEO',
-          locationOrLink: 'https://meet.example.com/room',
-          notes: 'Portfolio review',
+          interviewAt: '02-11-2026 09:00 AM',
+          mode: 'Online',
+          details: 'https://meet.example.com/room',
         })).unwrap(),
       },
       {
         path: '/api/recruiter/applications/17/next-round',
         run: () => store.dispatch(recruiterApi.endpoints.scheduleApplicationNextRound.initiate({
           applicationId: '17',
-          scheduledAt: '2026-11-05T09:00:00.000Z',
-          mode: 'PHONE',
+          interviewAt: '05-11-2026 10:30 AM',
+          mode: 'In Person',
+          details: 'Interview at the office.',
         })).unwrap(),
       },
       {
@@ -72,6 +72,16 @@ describe('recruiter application actions', () => {
       actions.map(action => action.path),
     );
     expect(requests.map(request => request.method)).toEqual(Array(5).fill('PUT'));
+    expect(await requests[1].clone().json()).toEqual({
+      interviewAt: '02-11-2026 09:00 AM',
+      mode: 'Online',
+      details: 'https://meet.example.com/room',
+    });
+    expect(await requests[2].clone().json()).toEqual({
+      interviewAt: '05-11-2026 10:30 AM',
+      mode: 'In Person',
+      details: 'Interview at the office.',
+    });
     expect(await requests[3].clone().json()).toEqual({ result: 'SELECTED' });
     expect(await requests[4].clone().json()).toEqual({ reason: 'Role requirements changed' });
 

@@ -14,13 +14,14 @@ import Pressable from '../../../components/common/InteractivePressable';
 import { colors, radius, scale, spacing, vs } from '../../../theme';
 import {
   ApplicationInterviewBody,
+  InterviewModeApi,
+  InterviewModeBackend,
   useRejectApplicationMutation,
   useScheduleApplicationInterviewMutation,
   useScheduleApplicationNextRoundMutation,
   useShortlistApplicationMutation,
   useUpdateApplicationResultMutation,
 } from '../api/recruiterApi';
-import type { InterviewMode } from '../../../types/models';
 
 type Props = {
   applicationId: string;
@@ -29,32 +30,42 @@ type Props = {
 };
 
 type FormAction = 'interview' | 'nextRound' | 'reject' | null;
-type ModeOption = { value: InterviewMode; label: string };
+type ModeOption = { value: InterviewModeBackend; label: string };
 
 const MODES: ModeOption[] = [
-  { value: 'VIDEO', label: 'Video' },
-  { value: 'PHONE', label: 'Phone' },
-  { value: 'IN_PERSON', label: 'In person' },
+  { value: 'ONLINE',  label: 'Online'   },
+  { value: 'OFFLINE', label: 'In Person' },
+  { value: 'PHONE',   label: 'Phone'    },
 ];
+
+const MODE_API_VALUES: Record<InterviewModeBackend, InterviewModeApi> = {
+  ONLINE: 'Online',
+  OFFLINE: 'In Person',
+  PHONE: 'Phone',
+};
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
     const apiError = error as {
-      data?: { message?: string; error?: string };
+      data?: { message?: string; error?: string; errors?: unknown };
       error?: string;
       status?: number | string;
+      originalStatus?: number;
     };
+    // Log full error for debugging
+    console.error('[ApplicationActions] API error:', JSON.stringify(error, null, 2));
     if (apiError.data?.message) return apiError.data.message;
     if (apiError.data?.error) return apiError.data.error;
     if (apiError.error) return apiError.error;
+    if (apiError.status === 'PARSING_ERROR') return 'Server returned an unexpected response. Check your connection.';
     if (apiError.status) return `Request failed (${apiError.status}). Please try again.`;
   }
   return 'Please try again.';
 }
 
 function isValidDateTime(date: string, time: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return false;
-  const [year, month, day] = date.split('-').map(Number);
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return false;
+  const [day, month, year] = date.split('-').map(Number);
   const [hour, minute] = time.split(':').map(Number);
   const parsed = new Date(year, month - 1, day, hour, minute);
   return parsed.getFullYear() === year &&
@@ -74,9 +85,8 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
   const [formAction, setFormAction] = useState<FormAction>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [mode, setMode] = useState<InterviewMode>('VIDEO');
-  const [locationOrLink, setLocationOrLink] = useState('');
-  const [notes, setNotes] = useState('');
+  const [mode, setMode] = useState<InterviewModeBackend>('ONLINE');
+  const [details, setDetails] = useState('');
   const [reason, setReason] = useState('');
 
   const isWorking =
@@ -144,9 +154,8 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
   const openForm = (action: Exclude<FormAction, null>) => {
     setDate('');
     setTime('');
-    setMode('VIDEO');
-    setLocationOrLink('');
-    setNotes('');
+    setMode('ONLINE');
+    setDetails('');
     setReason('');
     setFormAction(action);
   };
@@ -170,19 +179,23 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
     }
 
     if (!isValidDateTime(date.trim(), time.trim())) {
-      Alert.alert('Check date and time', 'Enter a valid future date (YYYY-MM-DD) and time (HH:MM).');
+      Alert.alert('Check date and time', 'Enter a valid future date (DD-MM-YYYY) and time (HH:MM).');
       return;
     }
 
+    const [day, month, year] = date.trim().split('-');
+    const [hour, minute] = time.trim().split(':').map(Number);
+    const displayHour = String(hour % 12 || 12).padStart(2, '0');
+    const period = hour >= 12 ? 'PM' : 'AM';
     const payload: { applicationId: string } & ApplicationInterviewBody = {
       applicationId,
-      scheduledAt: new Date(`${date.trim()}T${time.trim()}:00`).toISOString(),
-      mode,
-      locationOrLink: locationOrLink.trim() || undefined,
-      notes: notes.trim() || undefined,
+      interviewAt: `${day}-${month}-${year} ${displayHour}:${String(minute).padStart(2, '0')} ${period}`,
+      mode: MODE_API_VALUES[mode],
+      details: details.trim(),
     };
     const isNextRound = formAction === 'nextRound';
     const label = isNextRound ? 'next-round interview' : 'interview';
+    console.log('[ApplicationActions] Scheduling payload:', JSON.stringify(payload, null, 2));
 
     Alert.alert(`Schedule ${label}?`, 'Confirm these schedule details.', [
       { text: 'Cancel', style: 'cancel' },
@@ -282,7 +295,7 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
                 <>
                   <Field
                     label="Date"
-                    placeholder="YYYY-MM-DD"
+                    placeholder="DD-MM-YYYY"
                     value={date}
                     onChangeText={setDate}
                     keyboardType="numbers-and-punctuation"
@@ -301,7 +314,9 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
                     {MODES.map(option => (
                       <Pressable
                         key={option.value}
-                        onPress={() => setMode(option.value)}
+                        onPress={() => {
+                          setMode(option.value);
+                        }}
                         style={[styles.modeOption, mode === option.value && styles.modeSelected]}>
                         <AppText
                           variant="caption"
@@ -312,17 +327,22 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
                     ))}
                   </View>
                   <Field
-                    label="Meeting link or location (optional)"
-                    placeholder="Video link or office address"
-                    value={locationOrLink}
-                    onChangeText={setLocationOrLink}
-                    autoCapitalize="none"
-                  />
-                  <Field
-                    label="Notes (optional)"
-                    placeholder="Details shared with the candidate"
-                    value={notes}
-                    onChangeText={setNotes}
+                    label={
+                      mode === 'ONLINE'
+                        ? 'Meeting link or details'
+                        : mode === 'OFFLINE'
+                          ? 'Interview location or details'
+                          : 'Phone number or details'
+                    }
+                    placeholder={
+                      mode === 'ONLINE'
+                        ? 'e.g. https://meet.google.com/...'
+                        : mode === 'OFFLINE'
+                          ? 'e.g. Interview at the office.'
+                          : 'e.g. phone number or call details'
+                    }
+                    value={details}
+                    onChangeText={setDetails}
                     multiline
                   />
                 </>

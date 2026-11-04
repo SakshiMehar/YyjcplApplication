@@ -52,6 +52,7 @@ export type CandidateStackParamList = SharedRoutes & {
   ApplicationTracker: { applicationId: ID };
   EditCandidateProfile: undefined;
   Resume: undefined;
+  SavedJobs: undefined;
 };
 
 /* ---------------- Recruiter ---------------- */

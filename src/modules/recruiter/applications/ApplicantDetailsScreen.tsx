@@ -1,10 +1,13 @@
 import React from 'react';
 import {
-  Linking,
+  ActivityIndicator,
+  Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Award,
@@ -25,7 +28,8 @@ import { AppText, UserAvatar } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { RecruiterScreenProps } from '../../../navigation/types';
 import { colors, font, radius, scale, sizes, spacing, vs } from '../../../theme';
-import { ENV } from '../../../config/env';
+import { useAppSelector } from '../../../store/hooks';
+import { resolveResumeUrl } from '../../candidate/utils/resume';
 import ApplicationActions from './ApplicationActions';
 
 /* ─── Status badge ───────────────────────────────────────────────────────── */
@@ -119,6 +123,10 @@ export default function ApplicantDetailsScreen({
   const { application } = route.params;
   const profile = application.jobSeekerProfile;
   const insets = useSafeAreaInsets();
+  const token = useAppSelector(state => state.auth.token);
+  const [isResumeViewerOpen, setIsResumeViewerOpen] = React.useState(false);
+  const [isResumeLoading, setIsResumeLoading] = React.useState(false);
+  const [resumeError, setResumeError] = React.useState<string | null>(null);
 
   const name = profile?.name ?? application.applicantName ?? application.jobSeekerName ?? `Job Seeker #${application.jobSeekerId}`;
   const appliedDate = new Date(application.appliedAt).toLocaleDateString('en-IN', {
@@ -131,11 +139,28 @@ export default function ApplicantDetailsScreen({
 
   const handleResumeOpen = () => {
     if (!profile?.resumeUrl) return;
-    const url = profile.resumeUrl.startsWith('http')
-      ? profile.resumeUrl
-      : `${ENV.API_BASE_URL.replace('/api', '')}${profile.resumeUrl}`;
-    Linking.openURL(url).catch(() => {});
+    if (!token) {
+      Alert.alert('Sign in required', 'Please sign in again to view this resume.');
+      return;
+    }
+    setResumeError(null);
+    setIsResumeLoading(true);
+    setIsResumeViewerOpen(true);
   };
+  const resumeUrl = profile?.resumeUrl?.trim();
+  const resolvedResumeUrl = resumeUrl ? resolveResumeUrl(resumeUrl) : undefined;
+  const resumeSource = resolvedResumeUrl
+    ? {
+        uri: resolvedResumeUrl,
+        cache: true,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(resolvedResumeUrl.includes('ngrok')
+            ? { 'ngrok-skip-browser-warning': 'true' }
+            : {}),
+        },
+      }
+    : undefined;
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom }]}>
@@ -332,8 +357,73 @@ export default function ApplicantDetailsScreen({
 
         <View style={{ height: vs(16) }} />
       </ScrollView>
+
+      <Modal
+        visible={isResumeViewerOpen}
+        animationType="slide"
+        onRequestClose={() => setIsResumeViewerOpen(false)}>
+        <View style={styles.resumeViewer}>
+          <View style={[styles.resumeViewerHeader, { paddingTop: insets.top }]}>
+            <Pressable
+              onPress={() => setIsResumeViewerOpen(false)}
+              style={styles.resumeCloseButton}
+              accessibilityRole="button"
+              accessibilityLabel="Close resume">
+              <ChevronLeft size={scale(22)} color={colors.text} />
+            </Pressable>
+            <AppText variant="bodyBold" numberOfLines={1} style={styles.resumeViewerTitle}>
+              {resumeUrl ? getResumeFileName(resumeUrl) : 'Resume'}
+            </AppText>
+          </View>
+          {resumeError ? (
+            <View style={styles.resumeError}>
+              <FileText size={scale(32)} color={colors.danger} />
+              <AppText variant="bodyBold">Could not open this resume</AppText>
+              <AppText variant="caption" color="textSecondary" style={styles.resumeErrorMessage}>
+                {resumeError}
+              </AppText>
+              <Pressable
+                onPress={() => setIsResumeViewerOpen(false)}
+                style={styles.resumeErrorClose}
+                accessibilityRole="button">
+                <AppText variant="bodyBold" color="primary">Close</AppText>
+              </Pressable>
+            </View>
+          ) : resumeSource ? (
+            <Pdf
+              source={resumeSource}
+              style={styles.resumePdf}
+              trustAllCerts={false}
+              renderActivityIndicator={() => (
+                <ActivityIndicator size="large" color={colors.primary} />
+              )}
+              onLoadComplete={() => setIsResumeLoading(false)}
+              onError={error => {
+                setIsResumeLoading(false);
+                setResumeError(error.message || 'Check your connection and try again.');
+              }}
+            />
+          ) : null}
+          {isResumeLoading && !resumeError ? (
+            <View style={styles.resumeLoading} pointerEvents="none">
+              <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
+}
+
+function getResumeFileName(resumeUrl: string): string {
+  const fileName = resumeUrl.split(/[?#]/, 1)[0]?.split('/').pop();
+  if (!fileName) return 'Resume';
+
+  try {
+    return decodeURIComponent(fileName);
+  } catch {
+    return fileName;
+  }
 }
 
 /* ─── Styles ─────────────────────────────────────────────────────────────── */
@@ -510,4 +600,43 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   resumeMeta: { flex: 1, gap: vs(2) },
+  resumeViewer: { flex: 1, backgroundColor: colors.background },
+  resumeViewerHeader: {
+    minHeight: scale(56),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  resumeCloseButton: {
+    width: scale(40),
+    height: scale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resumeViewerTitle: { flex: 1 },
+  resumePdf: { flex: 1, width: '100%' },
+  resumeLoading: {
+    ...StyleSheet.absoluteFill,
+    top: scale(56),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  resumeError: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  resumeErrorMessage: { textAlign: 'center' },
+  resumeErrorClose: {
+    minHeight: scale(42),
+    minWidth: scale(100),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

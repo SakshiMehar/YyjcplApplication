@@ -8,6 +8,7 @@ import CandidateInterviewsScreen from '../modules/candidate/interviews/Candidate
 import ApplyJobScreen from '../modules/candidate/jobs/ApplyJobScreen';
 import JobDetailsScreen from '../modules/candidate/jobs/JobDetailsScreen';
 import JobSearchScreen from '../modules/candidate/jobs/JobSearchScreen';
+import SavedJobsScreen from '../modules/candidate/jobs/SavedJobsScreen';
 import CandidateProfileScreen from '../modules/candidate/profile/CandidateProfileScreen';
 import EditCandidateProfileScreen from '../modules/candidate/profile/EditCandidateProfileScreen';
 import ResumeScreen from '../modules/candidate/resume/ResumeScreen';
@@ -55,6 +56,7 @@ export default function CandidateNavigator() {
       <Stack.Screen name="ApplicationTracker" component={ApplicationTrackerScreen} />
       <Stack.Screen name="EditCandidateProfile" component={EditCandidateProfileScreen} />
       <Stack.Screen name="Resume" component={ResumeScreen} />
+      <Stack.Screen name="SavedJobs" component={SavedJobsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="RaiseComplaint" component={RaiseComplaintScreen} />

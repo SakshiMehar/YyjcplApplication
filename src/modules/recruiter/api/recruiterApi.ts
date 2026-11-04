@@ -29,12 +29,21 @@ export type CandidateSearchResult = Pick<User, 'id' | 'name' | 'avatarUrl'> &
 /** Body of PUT /api/recruiter/profile – the signed-in recruiter's company profile. */
 export type RecruiterProfileBody = {
   companyName: string;
-  industry?: string;
-  companySize?: string;
-  website?: string;
-  about?: string;
-  location?: string;
-  logoUrl?: string;
+  companyWebsite?: string;
+  companyIndustry?: string;
+  companyDescription?: string;
+  companyLocation?: string;
+  profilePictureUrl?: string;
+};
+
+/** Response of GET /api/recruiter/profile */
+export type RecruiterProfile = {
+  companyName?: string;
+  companyWebsite?: string;
+  companyIndustry?: string;
+  companyDescription?: string;
+  companyLocation?: string;
+  profilePictureUrl?: string;
 };
 
 export type RecruiterJob = {
@@ -58,11 +67,19 @@ export type RecruiterJobBody = {
   location: string;
 };
 
+export type InterviewModeBackend = 'ONLINE' | 'OFFLINE' | 'PHONE';
+export type InterviewModeApi = 'Online' | 'In Person' | 'Phone';
+
 export type ApplicationInterviewBody = {
-  scheduledAt: string;
-  mode: InterviewMode;
-  locationOrLink?: string;
-  notes?: string;
+  interviewAt: string;           // DD-MM-YYYY hh:mm AM/PM
+  mode: InterviewModeApi;
+  details: string;
+};
+
+export type ApplicationInterviewResponse = {
+  interviewAt: string;
+  mode: InterviewModeApi;
+  details: string;
 };
 
 export type ApplicationResultBody = {
@@ -116,17 +133,24 @@ function normalizeRecruiterJobs(raw: unknown): RecruiterJob[] {
 export const recruiterApi = baseApi.injectEndpoints({
   endpoints: build => ({
     /* Company */
-    getCompany: build.query<Company, void>({
-      query: () => '/recruiter/company',
-      providesTags: ['Company'],
-    }),
     updateCompany: build.mutation<Company, Partial<Company>>({
       query: body => ({ url: '/recruiter/company', method: 'PUT', body }),
       invalidatesTags: ['Company'],
     }),
+    /** GET /api/recruiter/profile */
+    getRecruiterProfile: build.query<RecruiterProfile, void>({
+      query: () => '/recruiter/profile',
+      providesTags: ['Company'],
+    }),
+
     /** Create or update the signed-in recruiter's company profile – PUT /api/recruiter/profile. */
     upsertRecruiterProfile: build.mutation<unknown, RecruiterProfileBody>({
-      query: body => ({ url: '/recruiter/profile', method: 'PUT', body }),
+      query: body => ({
+        url: '/recruiter/profile',
+        method: 'PUT',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+      }),
       transformResponse: (res: unknown, meta) => {
         logApi('PUT /api/recruiter/profile', httpStatus(meta), res);
         return res;
@@ -199,7 +223,7 @@ export const recruiterApi = baseApi.injectEndpoints({
       query: () => '/recruiter/applications/count',
       transformResponse: (res: unknown, meta) => {
         logApi('GET /api/recruiter/applications/count', httpStatus(meta), res);
-        const r = res as { count?: number; total?: number } | number;
+        const r = res as { count?: number; total?: number; metric?: string } | number;
         return typeof r === 'number' ? r : (r?.count ?? r?.total ?? 0);
       },
       transformErrorResponse: (err, meta) => {
@@ -212,7 +236,7 @@ export const recruiterApi = baseApi.injectEndpoints({
       query: () => '/recruiter/applications/shortlisted/count',
       transformResponse: (res: unknown, meta) => {
         logApi('GET /api/recruiter/applications/shortlisted/count', httpStatus(meta), res);
-        const r = res as { count?: number; total?: number } | number;
+        const r = res as { count?: number; total?: number; metric?: string } | number;
         return typeof r === 'number' ? r : (r?.count ?? r?.total ?? 0);
       },
       transformErrorResponse: (err, meta) => {
@@ -252,24 +276,26 @@ export const recruiterApi = baseApi.injectEndpoints({
       invalidatesTags: ['Application', 'Shortlist'],
     }),
     scheduleApplicationInterview: build.mutation<
-      unknown,
+      ApplicationInterviewResponse,
       { applicationId: ID } & ApplicationInterviewBody
     >({
       query: ({ applicationId, ...body }) => ({
         url: `/recruiter/applications/${applicationId}/interview`,
         method: 'PUT',
         body,
+        headers: { 'Content-Type': 'application/json' },
       }),
       invalidatesTags: ['Application', 'Interview'],
     }),
     scheduleApplicationNextRound: build.mutation<
-      unknown,
+      ApplicationInterviewResponse,
       { applicationId: ID } & ApplicationInterviewBody
     >({
       query: ({ applicationId, ...body }) => ({
         url: `/recruiter/applications/${applicationId}/next-round`,
         method: 'PUT',
         body,
+        headers: { 'Content-Type': 'application/json' },
       }),
       invalidatesTags: ['Application', 'Interview'],
     }),
@@ -342,8 +368,8 @@ export const recruiterApi = baseApi.injectEndpoints({
 });
 
 export const {
-  useGetCompanyQuery,
   useUpdateCompanyMutation,
+  useGetRecruiterProfileQuery,
   useUpsertRecruiterProfileMutation,
   useGetMyJobsQuery,
   useCreateJobMutation,

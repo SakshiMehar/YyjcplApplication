@@ -20,6 +20,7 @@ export type JobSeekerJob = {
   candidateVacancies?: number;
   /** Current job lifecycle state returned by the job-seeker API, e.g. ACTIVE. */
   status?: string;
+  isSaved?: boolean;
   createdAt?: string;
   approvalStatus?: string;
   postedAt?: string;
@@ -166,22 +167,42 @@ function normalizeApplications(res: unknown): JobSeekerApplication[] {
     const interview =
       asRecord(application.interview) ??
       asRecord(application.interviewDetails) ??
-      asRecord(application.scheduledInterview);
+      asRecord(application.scheduledInterview) ??
+      asRecord(application.interviewSchedule) ??
+      (application.interviewAt ? application : undefined);
     const nextRound =
       asRecord(application.nextRound) ??
       asRecord(application.nextRoundDetails) ??
-      asRecord(application.nextRoundInterview);
+      asRecord(application.nextRoundInterview) ??
+      asRecord(application.nextRoundSchedule) ??
+      (application.nextRoundAt
+        ? {
+            interviewAt: application.nextRoundAt,
+            mode: application.nextRoundMode ?? application.mode,
+            details: application.nextRoundDetails ?? application.details,
+          }
+        : undefined);
     const recruiter = asRecord(application.recruiter) ?? asRecord(application.recruiterDetails);
     const timeline = application.timeline ?? application.history ?? application.statusHistory;
 
     const normalizeSchedule = (schedule?: ApiRecord): ApplicationSchedule | undefined =>
       schedule
         ? {
-            scheduledAt: asText(schedule.scheduledAt, schedule.dateTime, schedule.interviewDateTime),
-            mode: asText(schedule.mode, schedule.interviewMode),
-            locationOrLink: asText(schedule.locationOrLink, schedule.meetingLink, schedule.location),
-            notes: asText(schedule.notes, schedule.note),
-          }
+          scheduledAt: asText(
+            schedule.scheduledAt,
+            schedule.interviewAt,
+            schedule.dateTime,
+            schedule.interviewDateTime,
+          ),
+          mode: asText(schedule.mode, schedule.interviewMode),
+          locationOrLink: asText(
+            schedule.locationOrLink,
+            schedule.meetingLink,
+            schedule.location,
+            schedule.venue,
+          ),
+          notes: asText(schedule.notes, schedule.details, schedule.note),
+        }
         : undefined;
 
     return [{
@@ -239,13 +260,35 @@ function normalizeApplications(res: unknown): JobSeekerApplication[] {
 }
 
 function normalizeJobs(res: unknown): JobSeekerJob[] {
-  const body = asRecord(res);
-  const list = Array.isArray(res) ? res : body?.items ?? body?.data ?? body?.jobs;
-  if (!Array.isArray(list)) return [];
+  const unwrapJobs = (value: unknown, depth = 0): unknown[] | undefined => {
+    if (Array.isArray(value)) return value;
+    if (depth >= 5) return undefined;
+
+    const body = asRecord(value);
+    if (!body) return undefined;
+
+    for (const key of ['items', 'data', 'jobs', 'savedJobs', 'content', 'results']) {
+      if (body[key] !== undefined) {
+        const unwrapped = unwrapJobs(body[key], depth + 1);
+        if (unwrapped) return unwrapped;
+      }
+    }
+
+    return undefined;
+  };
+  const list = unwrapJobs(res);
+  if (!list) {
+    throw new Error('Unexpected saved jobs response: expected a jobs array.');
+  }
 
   return list.flatMap(item => {
-    const job = asRecord(item);
-    if (!job) return [];
+    const savedItem = asRecord(item);
+    if (!savedItem) return [];
+    const job =
+      asRecord(savedItem.job) ??
+      asRecord(savedItem.jobDetails) ??
+      asRecord(savedItem.jobPost) ??
+      savedItem;
 
     const id = asText(job.id, job.jobId);
     if (!id) return [];
@@ -260,6 +303,7 @@ function normalizeJobs(res: unknown): JobSeekerJob[] {
       location: asText(job.location) ?? 'Location not specified',
       candidateVacancies: typeof job.candidateVacancies === 'number' ? job.candidateVacancies : undefined,
       status: asText(job.status),
+      isSaved: typeof job.isSaved === 'boolean' ? job.isSaved : undefined,
       createdAt: asText(job.createdAt),
       approvalStatus: asText(job.approvalStatus, job.status),
       postedAt: asText(job.postedAt, job.createdAt),
@@ -351,6 +395,31 @@ export const candidateApi = baseApi.injectEndpoints({
         method: 'POST',
       }),
       invalidatesTags: ['Application'],
+    }),
+
+    /* POST /api/job-seeker/jobs/{jobId}/save — no request body */
+    saveJob: build.mutation<void, { jobId: ID }>({
+      query: ({ jobId }) => ({
+        url: `/job-seeker/jobs/${jobId}/save`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Job', 'SavedJob'],
+    }),
+
+    /* GET /api/job-seeker/jobs/saved */
+    getSavedJobs: build.query<JobSeekerJob[], void>({
+      query: () => '/job-seeker/jobs/saved',
+      transformResponse: normalizeJobs,
+      providesTags: ['SavedJob'],
+    }),
+
+    /* DELETE /api/job-seeker/jobs/{jobId}/save */
+    removeSavedJob: build.mutation<void, { jobId: ID }>({
+      query: ({ jobId }) => ({
+        url: `/job-seeker/jobs/${jobId}/save`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['SavedJob', 'Job'],
     }),
 
     /* GET /api/job-seeker/applications */
@@ -493,6 +562,9 @@ export const {
   useUpdateJobSeekerProfileMutation,
   useUploadResumeMutation,
   useApplyToJobMutation,
+  useSaveJobMutation,
+  useGetSavedJobsQuery,
+  useRemoveSavedJobMutation,
   useGetMyApplicationsQuery,
   useGetProjectsQuery,
   useAddProjectMutation,
