@@ -18,7 +18,6 @@ import {
   InterviewModeBackend,
   useRejectApplicationMutation,
   useScheduleApplicationInterviewMutation,
-  useScheduleApplicationNextRoundMutation,
   useShortlistApplicationMutation,
   useUpdateApplicationResultMutation,
 } from '../api/recruiterApi';
@@ -26,10 +25,11 @@ import {
 type Props = {
   applicationId: string;
   status: string;
+  hasInterviewScheduled?: boolean;
   onUpdated: () => void;
 };
 
-type FormAction = 'interview' | 'nextRound' | 'reject' | null;
+type FormAction = 'interview' | 'reject' | null;
 type ModeOption = { value: InterviewModeBackend; label: string };
 
 const MODES: ModeOption[] = [
@@ -76,10 +76,14 @@ function isValidDateTime(date: string, time: string): boolean {
     parsed.getTime() >= Date.now();
 }
 
-export default function ApplicationActions({ applicationId, status, onUpdated }: Props) {
+export default function ApplicationActions({
+  applicationId,
+  status,
+  hasInterviewScheduled = false,
+  onUpdated,
+}: Props) {
   const [shortlist, shortlistState] = useShortlistApplicationMutation();
   const [scheduleInterview, interviewState] = useScheduleApplicationInterviewMutation();
-  const [scheduleNextRound, nextRoundState] = useScheduleApplicationNextRoundMutation();
   const [updateResult, resultState] = useUpdateApplicationResultMutation();
   const [rejectApplication, rejectState] = useRejectApplicationMutation();
   const [formAction, setFormAction] = useState<FormAction>(null);
@@ -88,15 +92,18 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
   const [mode, setMode] = useState<InterviewModeBackend>('ONLINE');
   const [details, setDetails] = useState('');
   const [reason, setReason] = useState('');
+  const [didScheduleInterview, setDidScheduleInterview] = useState(false);
 
   const isWorking =
     shortlistState.isLoading ||
     interviewState.isLoading ||
-    nextRoundState.isLoading ||
     resultState.isLoading ||
     rejectState.isLoading;
   const normalizedStatus = status.toUpperCase();
   const isFinal = ['SELECTED', 'NOT_SELECTED', 'REJECTED'].includes(normalizedStatus);
+  const interviewScheduled = didScheduleInterview || hasInterviewScheduled;
+  const isInterviewStage =
+    interviewScheduled || ['INTERVIEW_SCHEDULED', 'NEXT_ROUND'].includes(normalizedStatus);
 
   const success = (message: string) => {
     setFormAction(null);
@@ -106,9 +113,11 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
   const runAction = async (
     action: () => Promise<unknown>,
     message: string,
+    onSuccess?: () => void,
   ) => {
     try {
       await action();
+      onSuccess?.();
       success(message);
     } catch (error) {
       Alert.alert('Could not update application', getErrorMessage(error));
@@ -131,19 +140,18 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
     );
   };
 
-  const confirmResult = (result: 'SELECTED' | 'NOT_SELECTED') => {
-    const label = result === 'SELECTED' ? 'select' : 'mark as not selected';
+  const confirmResult = () => {
     Alert.alert(
       'Confirm final result',
-      `Are you sure you want to ${label} this candidate?`,
+      'Are you sure you want to select this candidate?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: result === 'SELECTED' ? 'Select' : 'Confirm',
+          text: 'Select',
           onPress: () => {
             runAction(
-              () => updateResult({ applicationId, result }).unwrap(),
-              result === 'SELECTED' ? 'Candidate selected.' : 'Final result saved.',
+              () => updateResult({ applicationId, result: 'SELECTED' }).unwrap(),
+              'Candidate selected.',
             );
           },
         },
@@ -193,18 +201,17 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
       mode: MODE_API_VALUES[mode],
       details: details.trim(),
     };
-    const isNextRound = formAction === 'nextRound';
-    const label = isNextRound ? 'next-round interview' : 'interview';
     console.log('[ApplicationActions] Scheduling payload:', JSON.stringify(payload, null, 2));
 
-    Alert.alert(`Schedule ${label}?`, 'Confirm these schedule details.', [
+    Alert.alert('Schedule interview?', 'Confirm these schedule details.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Schedule',
         onPress: () => {
           runAction(
-            () => (isNextRound ? scheduleNextRound(payload) : scheduleInterview(payload)).unwrap(),
-            isNextRound ? 'Next-round details saved.' : 'Interview scheduled.',
+            () => scheduleInterview(payload).unwrap(),
+            'Interview scheduled.',
+            () => setDidScheduleInterview(true),
           );
         },
       },
@@ -222,7 +229,7 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
           style={styles.actionButton}
         />
       ) : null}
-      {!isFinal && normalizedStatus === 'SHORTLISTED' ? (
+      {!isFinal && normalizedStatus === 'SHORTLISTED' && !interviewScheduled ? (
         <AppButton
           title="Schedule interview"
           onPress={() => openForm('interview')}
@@ -230,30 +237,14 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
           style={styles.actionButton}
         />
       ) : null}
-      {!isFinal && ['INTERVIEW_SCHEDULED', 'NEXT_ROUND'].includes(normalizedStatus) ? (
-        <>
-          <AppButton
-            title="Schedule next round"
-            variant="outline"
-            onPress={() => openForm('nextRound')}
-            disabled={isWorking}
-            style={styles.actionButton}
-          />
-          <AppButton
-            title="Select"
-            onPress={() => confirmResult('SELECTED')}
-            loading={resultState.isLoading}
-            disabled={isWorking}
-            style={styles.actionButton}
-          />
-          <AppButton
-            title="Not selected"
-            variant="outline"
-            onPress={() => confirmResult('NOT_SELECTED')}
-            disabled={isWorking}
-            style={styles.actionButton}
-          />
-        </>
+      {!isFinal && isInterviewStage ? (
+        <AppButton
+          title="Select"
+          onPress={confirmResult}
+          loading={resultState.isLoading}
+          disabled={isWorking}
+          style={styles.actionButton}
+        />
       ) : null}
       {!isFinal ? (
         <AppButton
@@ -277,11 +268,7 @@ export default function ApplicationActions({ applicationId, status, onUpdated }:
           <View style={styles.sheet}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <AppText variant="h3" style={styles.title}>
-                {formAction === 'interview'
-                  ? 'Schedule interview'
-                  : formAction === 'nextRound'
-                    ? 'Schedule next round'
-                    : 'Reject candidate'}
+                {formAction === 'interview' ? 'Schedule interview' : 'Reject candidate'}
               </AppText>
               {formAction === 'reject' ? (
                 <Field

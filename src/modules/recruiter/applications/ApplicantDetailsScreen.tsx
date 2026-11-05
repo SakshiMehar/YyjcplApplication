@@ -351,6 +351,11 @@ export default function ApplicantDetailsScreen({
           <ApplicationActions
             applicationId={String(application.applicationId)}
             status={application.status}
+            hasInterviewScheduled={Boolean(
+              application.interviewAt ||
+              application.interview?.interviewAt ||
+              application.interviewDetails?.interviewAt,
+            )}
             onUpdated={() => navigation.goBack()}
           />
         </View>

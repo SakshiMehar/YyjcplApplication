@@ -98,6 +98,9 @@ export type RecruiterApplication = {
   jobSeekerName?: string;   // alternate field name the backend might use
   status: string;
   appliedAt: string;
+  interviewAt?: string;
+  interview?: ApplicationInterviewResponse;
+  interviewDetails?: ApplicationInterviewResponse;
   jobSeekerProfile: {
     name?: string;          // some backends include name here
     headline?: string;
@@ -287,18 +290,6 @@ export const recruiterApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Application', 'Interview'],
     }),
-    scheduleApplicationNextRound: build.mutation<
-      ApplicationInterviewResponse,
-      { applicationId: ID } & ApplicationInterviewBody
-    >({
-      query: ({ applicationId, ...body }) => ({
-        url: `/recruiter/applications/${applicationId}/next-round`,
-        method: 'PUT',
-        body,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-      invalidatesTags: ['Application', 'Interview'],
-    }),
     updateApplicationResult: build.mutation<
       unknown,
       { applicationId: ID } & ApplicationResultBody
@@ -382,7 +373,6 @@ export const {
   useUpdateApplicationStatusMutation,
   useShortlistApplicationMutation,
   useScheduleApplicationInterviewMutation,
-  useScheduleApplicationNextRoundMutation,
   useUpdateApplicationResultMutation,
   useRejectApplicationMutation,
   useSearchCandidatesQuery,
