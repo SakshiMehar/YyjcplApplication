@@ -52,6 +52,15 @@ export type CandidateStackParamList = SharedRoutes & {
   ApplicationTracker: { applicationId: ID };
   EditCandidateProfile: undefined;
   Resume: undefined;
+  UploadedResume: undefined;
+  ResumeTemplates: { resumeId?: string } | undefined;
+  PersonalDetails: { resumeId: string };
+  Education: { resumeId: string };
+  Experience: { resumeId: string };
+  Skills: { resumeId: string };
+  Projects: { resumeId: string };
+  Certifications: { resumeId: string };
+  ResumePreview: { resumeId: string };
   SavedJobs: undefined;
 };
 
@@ -76,15 +85,9 @@ export type RecruiterStackParamList = SharedRoutes & {
   Subscription: undefined;
 };
 
-export type AuthScreenProps<T extends keyof AuthStackParamList> = NativeStackScreenProps<
-  AuthStackParamList,
-  T
->;
-export type CandidateScreenProps<T extends keyof CandidateStackParamList> = NativeStackScreenProps<
-  CandidateStackParamList,
-  T
->;
-export type RecruiterScreenProps<T extends keyof RecruiterStackParamList> = NativeStackScreenProps<
-  RecruiterStackParamList,
-  T
->;
+export type AuthScreenProps<T extends keyof AuthStackParamList> =
+  NativeStackScreenProps<AuthStackParamList, T>;
+export type CandidateScreenProps<T extends keyof CandidateStackParamList> =
+  NativeStackScreenProps<CandidateStackParamList, T>;
+export type RecruiterScreenProps<T extends keyof RecruiterStackParamList> =
+  NativeStackScreenProps<RecruiterStackParamList, T>;

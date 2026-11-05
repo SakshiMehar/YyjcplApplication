@@ -22,7 +22,7 @@ function getResumeFileName(resumeUrl: string): string {
   }
 }
 
-export default function ResumeScreen({ navigation }: CandidateScreenProps<'Resume'>) {
+export default function ResumeScreen({ navigation }: CandidateScreenProps<'UploadedResume'>) {
   const {
     data: profile,
     isLoading,
