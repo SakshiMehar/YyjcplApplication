@@ -1,109 +1,101 @@
 import React from 'react';
-import { Image, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  ImageBackground,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
-import { ILLUSTRATIONS } from '../../../assets/illustrations';
-import { AppButton, AppText } from '../../../components/common';
-import { IllustrationSlot, SplashIllustration } from '../../../components/illustrations';
-import { APP_TAGLINE } from '../../../constants/app';
+import { ChevronRight } from 'lucide-react-native';
+import { AppText } from '../../../components/common';
 import { ScreenLayout } from '../../../layout';
 import { AuthScreenProps } from '../../../navigation/types';
-import { colors, gradients, radius, scale, spacing, vs } from '../../../theme';
+import { colors, scale } from '../../../theme';
 
-/** Splash / welcome – orange gradient, logo, tagline, artwork, Get Started. */
+/** Splash screen using the supplied artwork with a native Get Started button. */
 export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) {
-  const { width, height } = useWindowDimensions();
-  const artSize = ILLUSTRATIONS.splash
-    ? Math.min(width - spacing.lg * 2, height * 0.46, scale(460))
-    : Math.min(width * 0.82, height * 0.4, scale(380));
-  const brandSize = Math.min(width * 0.58, scale(240), height * 0.3);
-  const stageW = artSize * 0.95;
-  const stageH = artSize * 0.14;
-
-  // white status-bar icons only while this screen is visible
   const isFocused = useIsFocused();
 
   return (
     <ScreenLayout
       showHeader={false}
+      edges={[]}
+      padded={false}
       rootStyle={styles.root}
       mainBackground={colors.transparent}>
-      {isFocused ? <StatusBar barStyle="light-content" /> : null}
-      <View style={styles.container}>
-        <View style={styles.brand}>
-          <View style={[styles.logoCard, { width: brandSize, height: brandSize }]}>
-            <Image
-              source={require('../../../assets/icons/AppIcon.jpeg')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessible
-              accessibilityLabel="YYJCPL company logo"
-            />
-          </View>
-          <AppText
-            color="textOnPrimary"
-            align="center"
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            style={styles.tagline}>
-            {APP_TAGLINE}
-          </AppText>
-        </View>
-
-        <View style={styles.art}>
-          {/* soft white platform the characters stand on */}
-          <View
-            style={[
-              styles.stage,
-              {
-                // a circle squashed vertically = a true soft ellipse
-                width: stageW,
-                height: stageW,
-                borderRadius: stageW / 2,
-                bottom: stageH / 2 - stageW / 2 - stageH * 0.3,
-                transform: [{ scaleY: stageH / stageW }],
-                boxShadow: `0px 0px ${stageW * 0.12}px ${stageW * 0.04}px rgba(255,255,255,0.3)`,
-              },
-            ]}
-          />
-          <IllustrationSlot size={artSize} image={ILLUSTRATIONS.splash}>
-            <SplashIllustration size={artSize} />
-          </IllustrationSlot>
-        </View>
-
-        <AppButton
-          title="Get Started"
-          variant="onDark"
+      {isFocused ? <StatusBar hidden /> : null}
+      <ImageBackground
+        source={require('../../../assets/illustrations/Your Career, Our Priority.png')}
+        resizeMode="stretch"
+        style={styles.background}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Get Started"
           onPress={() => navigation.navigate('OnboardingJobSeeker')}
-          style={styles.button}
-        />
-      </View>
+          style={({ pressed }) => [
+            styles.button,
+            pressed && styles.buttonPressed,
+          ]}>
+          <View style={styles.buttonContent}>
+            <AppText style={styles.buttonText}>Get Started</AppText>
+            <View style={styles.arrowCircle}>
+              <ChevronRight
+                size={scale(22)}
+                color={colors.danger}
+                strokeWidth={3}
+              />
+            </View>
+          </View>
+        </Pressable>
+      </ImageBackground>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: colors.primary, backgroundImage: gradients.primary },
-  container: {
+  root: { backgroundColor: colors.background },
+  background: {
     flex: 1,
+    width: '100%',
+  },
+  button: {
+    position: 'absolute',
+    left: '20.1%',
+    top: '86.3%',
+    width: '60.1%',
+    height: '5.8%',
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
+    backgroundImage: 'linear-gradient(105deg, #FFA500 0%, #FF0050 100%)',
+    boxShadow: `0px ${scale(7)}px ${scale(14)}px rgba(255, 35, 75, 0.38)`,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: vs(36),
-    paddingBottom: vs(12),
-    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
   },
-  brand: { alignItems: 'center', gap: vs(10) },
-  logoCard: {
-    overflow: 'hidden',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
-    backgroundColor: colors.background,
-    padding: scale(4),
-    boxShadow: `0px ${vs(5)}px ${scale(18)}px rgba(90, 40, 0, 0.2)`,
+  buttonPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  buttonContent: {
+    width: '100%',
+    height: '100%',
+    paddingHorizontal: '8%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  logo: { width: '100%', height: '100%' },
-  art: { alignItems: 'center', justifyContent: 'flex-end' },
-  stage: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.2)' },
-  tagline: { opacity: 0.95, paddingHorizontal: spacing.sm },
-  button: { width: '100%', maxWidth: scale(520) },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: scale(18),
+    fontWeight: '700',
+  },
+  arrowCircle: {
+    position: 'absolute',
+    right: '3%',
+    width: '14%',
+    aspectRatio: 1,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

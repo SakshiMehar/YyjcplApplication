@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import type { ResumeDocument, ResumeEntry } from '../types/resume.types';
 
@@ -166,7 +166,7 @@ function drawHeader(page: PdfPage, resume: ResumeDocument, accent: RGB): PdfPage
   return page;
 }
 
-export function createResumePdf(resume: ResumeDocument): number[] {
+export function createResumePdf(resume: ResumeDocument): string {
   pages = [];
   let page = newPage();
   const accent = TEMPLATE_ACCENTS[resume.template] ?? TEMPLATE_ACCENTS.CLASSIC;
@@ -275,29 +275,113 @@ export function createResumePdf(resume: ResumeDocument): number[] {
     pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
   });
   pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return Array.from(pdf, character => character.charCodeAt(0));
+  return pdf;
 }
 
-export async function downloadResumePdf(resume: ResumeDocument): Promise<void> {
+export type ResumePdfDownload = {
+  fileName: string;
+  uri?: string;
+  notificationShown?: boolean;
+  notificationError?: string;
+  notificationPermissionDenied?: boolean;
+};
+
+export async function downloadResumePdf(
+  resume: ResumeDocument,
+): Promise<ResumePdfDownload> {
   const safeName = (resume.personal.fullName || resume.title || 'resume')
     .normalize('NFKD')
     .replace(/[^a-zA-Z0-9_-]+/g, '-')
     .replace(/^-|-$/g, '') || 'resume';
   const fileName = `${safeName}-${resume.id.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
-  const path = `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/${fileName}`;
-  await ReactNativeBlobUtil.fs.writeFile(path, createResumePdf(resume));
+  let path: string;
+  if (Platform.OS === 'android') {
+    const externalFilesDir = await ReactNativeBlobUtil.android.getSDCardDir();
+    if (!externalFilesDir) {
+      throw new Error('Android could not access app storage for the PDF.');
+    }
+    const resumeDirectory = `${externalFilesDir}/ResumeDownloads`;
+    if (!(await ReactNativeBlobUtil.fs.exists(resumeDirectory))) {
+      await ReactNativeBlobUtil.fs.mkdir(resumeDirectory);
+    }
+    path = `${resumeDirectory}/${fileName}`;
+  } else {
+    path = `${ReactNativeBlobUtil.fs.dirs.DocumentDir}/${fileName}`;
+  }
+  const pdf = createResumePdf(resume);
+  const bytes = Array.from(pdf, character => character.charCodeAt(0));
+  await ReactNativeBlobUtil.fs.writeFile(path, bytes, 'ascii');
 
   if (Platform.OS === 'android') {
-    await ReactNativeBlobUtil.MediaCollection.copyToMediaStore(
+    const uri = await ReactNativeBlobUtil.MediaCollection.copyToMediaStore(
       { name: fileName, parentFolder: '', mimeType: 'application/pdf' },
       'Download',
       path,
     );
-    return;
+    if (!uri) {
+      throw new Error('The PDF was created, but could not be saved to Downloads.');
+    }
+    try {
+      const notificationAllowed =
+        Platform.Version < 33 ||
+        (await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        )) === PermissionsAndroid.RESULTS.GRANTED;
+      if (!notificationAllowed) {
+        return {
+          fileName,
+          uri,
+          notificationShown: false,
+          notificationError: 'Notification permission was denied.',
+          notificationPermissionDenied: true,
+        };
+      }
+      if (!(await ReactNativeBlobUtil.fs.exists(path))) {
+        return {
+          fileName,
+          uri,
+          notificationShown: false,
+          notificationError:
+            'Android cannot access the saved resume file by filesystem path.',
+        };
+      }
+      await ReactNativeBlobUtil.android.addCompleteDownload({
+        title: fileName,
+        description: 'Your resume PDF is ready to view.',
+        mime: 'application/pdf',
+        path,
+        showNotification: true,
+      });
+      return { fileName, uri, notificationShown: true };
+    } catch (error) {
+      return {
+        fileName,
+        uri,
+        notificationShown: false,
+        notificationError:
+          error instanceof Error
+            ? error.message
+            : 'Android could not post the download notification.',
+      };
+    }
   }
   if (Platform.OS === 'ios') {
     ReactNativeBlobUtil.ios.previewDocument(path);
-    return;
+    return { fileName };
   }
   throw new Error('PDF download is not supported on this device.');
+}
+
+export async function openDownloadedResumePdf(uri: string): Promise<void> {
+  if (Platform.OS !== 'android') {
+    throw new Error('Opening a downloaded PDF this way is only supported on Android.');
+  }
+  const opened = await ReactNativeBlobUtil.android.actionViewIntent(
+    uri,
+    'application/pdf',
+    'Open resume PDF',
+  );
+  if (opened === false) {
+    throw new Error('No PDF viewer is available on this device.');
+  }
 }

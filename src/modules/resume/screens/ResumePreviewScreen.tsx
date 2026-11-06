@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Platform, StyleSheet, View } from 'react-native';
 import { AppButton, AppText } from '../../../components/common';
 import { ScreenLayout } from '../../../layout';
 import { CandidateScreenProps } from '../../../navigation/types';
@@ -10,7 +10,10 @@ import { getResumeCompletion } from '../utils/resumeValidation';
 import {
   useGetResumePreviewQuery,
 } from '../services/resumeApi';
-import { downloadResumePdf } from '../utils/resumePdf';
+import {
+  downloadResumePdf,
+  openDownloadedResumePdf,
+} from '../utils/resumePdf';
 import ProfessionalTemplate from '../templates/ProfessionalTemplate';
 import ModernTemplate from '../templates/ModernTemplate';
 import MinimalTemplate from '../templates/MinimalTemplate';
@@ -46,8 +49,52 @@ export default function ResumePreviewScreen({
   const startDownload = async () => {
     if (!resume) return;
     try {
-      await downloadResumePdf(previewResume ?? resume);
-      Alert.alert('PDF downloaded', 'Your resume PDF is ready.');
+      const savedPdf = await downloadResumePdf(previewResume ?? resume);
+      if (Platform.OS === 'android' && savedPdf.uri) {
+        const { uri } = savedPdf;
+        const openSettings = () => {
+          Linking.openSettings().catch(reason => {
+            Alert.alert(
+              'Could not open settings',
+              getResumeErrorMessage(
+                reason,
+                'Enable notifications for YYJCPL in your device settings.',
+              ),
+            );
+          });
+        };
+        const notificationMessage = savedPdf.notificationPermissionDenied
+          ? `${savedPdf.fileName} is saved in Downloads. Notifications are disabled for YYJCPL. Enable them in app settings to see download alerts.`
+          : savedPdf.notificationShown
+          ? `${savedPdf.fileName} is available in Downloads. A download notification was added.`
+          : `${savedPdf.fileName} is available in Downloads, but Android could not show a download notification. The PDF has still been saved successfully.`;
+        Alert.alert(
+          'PDF saved to Downloads',
+          notificationMessage,
+          [
+            ...(savedPdf.notificationPermissionDenied
+              ? [{ text: 'Notification settings', onPress: openSettings }]
+              : []),
+            {
+              text: 'Open PDF',
+              onPress: () => {
+                openDownloadedResumePdf(uri).catch(reason => {
+                  Alert.alert(
+                    'Could not open PDF',
+                    getResumeErrorMessage(reason, 'Please try again.'),
+                  );
+                });
+              },
+            },
+            { text: 'Done', style: 'cancel' },
+          ],
+        );
+      } else {
+        Alert.alert(
+          'PDF saved',
+          `${savedPdf.fileName} was saved to Documents and opened for preview.`,
+        );
+      }
     } catch (reason) {
       Alert.alert(
         'Could not download PDF',
