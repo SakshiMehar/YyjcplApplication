@@ -54,6 +54,12 @@ describe('resume API response mapping', () => {
     ).toEqual(['CLASSIC', 'MODERN', 'CREATIVE', 'MINIMAL']);
   });
 
+  it('keeps all four supported designs when the API returns only Classic', () => {
+    expect(
+      normalizeResumeTemplates({ templates: [{ templateCode: 'CLASSIC' }] }).map(template => template.id),
+    ).toEqual(['CLASSIC', 'MODERN', 'MINIMAL', 'CREATIVE']);
+  });
+
   it('maps server resume data and sections into the editor model', () => {
     expect(
       normalizeResume({

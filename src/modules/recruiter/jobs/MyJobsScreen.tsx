@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,13 +8,23 @@ import Pressable from '../../../components/common/InteractivePressable';
 import { ScreenLayout } from '../../../layout';
 import { RecruiterStackParamList } from '../../../navigation/types';
 import { colors, radius, scale, sizes, spacing, vs } from '../../../theme';
-import { RecruiterJob, useGetMyJobsQuery } from '../api/recruiterApi';
+import { RecruiterJob, useGetMyJobsQuery, useUpdateJobStatusMutation } from '../api/recruiterApi';
 
 function statusLabel(status?: string) {
   return status ? status.replace(/_/g, ' ') : 'Pending';
 }
 
-function JobCard({ job }: { job: RecruiterJob }) {
+function JobCard({
+  job,
+  onExpire,
+  isUpdatingStatus,
+}: {
+  job: RecruiterJob;
+  onExpire: () => void;
+  isUpdatingStatus: boolean;
+}) {
+  const status = job.status ?? job.approvalStatus;
+  const isExpired = status?.toUpperCase() === 'EXPIRED';
   return (
     <Card style={styles.card}>
       <View style={styles.cardHeader}>
@@ -24,7 +34,7 @@ function JobCard({ job }: { job: RecruiterJob }) {
         </View>
         <View style={styles.statusPill}>
           <AppText variant="caption" color="primary" style={styles.statusText}>
-            {statusLabel(job.approvalStatus)}
+            {statusLabel(status)}
           </AppText>
         </View>
       </View>
@@ -55,6 +65,16 @@ function JobCard({ job }: { job: RecruiterJob }) {
           <AppText variant="bodyBold">{job.location}</AppText>
         </View>
       </View>
+      {!isExpired ? (
+        <AppButton
+          title="Mark as Expired"
+          onPress={onExpire}
+          loading={isUpdatingStatus}
+          disabled={isUpdatingStatus}
+          variant="outline"
+          style={styles.expireButton}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -66,6 +86,34 @@ function JobCard({ job }: { job: RecruiterJob }) {
 export default function MyJobsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RecruiterStackParamList>>();
   const { data: jobs = [], isLoading, isFetching, isError, refetch } = useGetMyJobsQuery();
+  const [updateJobStatus, { isLoading: isUpdatingStatus }] = useUpdateJobStatusMutation();
+  const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
+
+  const confirmExpireJob = (job: RecruiterJob) => {
+    Alert.alert(
+      'Mark job as expired?',
+      `This will stop new applications for ${job.role}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, expire',
+          style: 'destructive',
+          onPress: async () => {
+            setUpdatingJobId(job.id);
+            try {
+              await updateJobStatus({ jobId: job.id, status: 'EXPIRED' }).unwrap();
+              Alert.alert('Job expired', `${job.role} is no longer accepting applications.`);
+            } catch (error) {
+              const apiError = error as { data?: { message?: string; error?: string } };
+              Alert.alert('Unable to update job', apiError.data?.message ?? apiError.data?.error ?? 'Please try again.');
+            } finally {
+              setUpdatingJobId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <ScreenLayout
@@ -74,6 +122,8 @@ export default function MyJobsScreen() {
       edges={['top']}
       scroll={false}
       padded={false}
+      rootStyle={styles.transparentRoot}
+      mainBackground="transparent"
       right={
         <Pressable onPress={() => navigation.navigate('PostJob')} hitSlop={scale(10)}>
           <Plus size={sizes.iconMd} color={colors.primary} />
@@ -105,7 +155,14 @@ export default function MyJobsScreen() {
           {jobs.length === 0 ? (
             <EmptyState title="No jobs posted" message="Create your first recruiter job post." />
           ) : (
-            jobs.map(job => <JobCard key={job.id} job={job} />)
+            jobs.map(job => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onExpire={() => confirmExpireJob(job)}
+                isUpdatingStatus={isUpdatingStatus && updatingJobId === job.id}
+              />
+            ))
           )}
         </ScrollView>
       )}
@@ -114,10 +171,12 @@ export default function MyJobsScreen() {
 }
 
 const styles = StyleSheet.create({
+  transparentRoot: { backgroundColor: 'transparent' },
   content: { padding: spacing.lg, paddingBottom: vs(96) },
   state: { padding: spacing.lg, gap: spacing.md },
   postButton: { marginBottom: spacing.md },
   card: {},
+  expireButton: { alignSelf: 'flex-start', marginTop: spacing.lg },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -3,6 +3,7 @@ import ReactNativeBlobUtil from 'react-native-blob-util';
 import { baseApi } from '../../../store/api/baseApi';
 import { ENV } from '../../../config/env';
 import type { RootState } from '../../../store';
+import { RESUME_TEMPLATES } from '../types/resume.types';
 import type {
   ResumeDocument,
   ResumeEntry,
@@ -107,7 +108,7 @@ export function normalizeResumeTemplates(response: unknown): ResumeTemplate[] {
       accent: '#44403C',
     },
   };
-  return list.flatMap(item => {
+  const templates = list.flatMap(item => {
     const entry = asRecord(item);
     const code = templateCode(
       typeof item === 'string' ? item : entry?.templateCode ?? entry?.code,
@@ -117,6 +118,16 @@ export function normalizeResumeTemplates(response: unknown): ResumeTemplate[] {
     }
     return [];
   });
+
+  // Some backend payloads include aliases or unsupported template codes. Those
+  // normalize to CLASSIC, so retain only one item per ID, then restore any
+  // locally supported designs the response did not list. The app supports all
+  // four templates even if the backend currently sends only CLASSIC.
+  const uniqueTemplates = [...new Map(templates.map(template => [template.id, template])).values()];
+  return [
+    ...uniqueTemplates,
+    ...RESUME_TEMPLATES.filter(template => !uniqueTemplates.some(item => item.id === template.id)),
+  ];
 }
 
 type NormalizedSection = {

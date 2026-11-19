@@ -4,8 +4,9 @@ import { USER_ROLES } from '../constants/roles';
 import AuthNavigator from '../navigation/AuthNavigator';
 import CandidateNavigator from '../navigation/CandidateNavigator';
 import RecruiterNavigator from '../navigation/RecruiterNavigator';
-import { getToken } from '../services/secureStorage';
-import { setBootstrapped } from '../store/slices/authSlice';
+import { authApi } from '../modules/auth/api/authApi';
+import { getAuthSession, saveAuthSession } from '../services/secureStorage';
+import { setBootstrapped, setCredentials, setToken } from '../store/slices/authSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 
 /**
@@ -20,11 +21,33 @@ export default function RootNavigator() {
   const { user, isBootstrapped } = useAppSelector(s => s.auth);
 
   useEffect(() => {
+    let active = true;
     (async () => {
-      // TODO: if a token exists, fetch /auth/me and dispatch setCredentials to restore the session.
-      await getToken().catch(() => null);
-      dispatch(setBootstrapped());
+      try {
+        const session = await getAuthSession();
+        if (active && session?.user) {
+          dispatch(setCredentials({ token: session.token, user: session.user }));
+        } else if (active && session) {
+          dispatch(setToken(session.token));
+          const restoredUser = await dispatch(
+            authApi.endpoints.getMe.initiate(undefined, { subscribe: false }),
+          ).unwrap();
+          if (active) {
+            await saveAuthSession(session.token, restoredUser);
+            dispatch(setCredentials({ token: session.token, user: restoredUser }));
+          }
+        }
+      } catch (error) {
+        console.warn('[Auth] Could not restore the saved session.', error);
+      } finally {
+        if (active) {
+          dispatch(setBootstrapped());
+        }
+      }
     })();
+    return () => {
+      active = false;
+    };
   }, [dispatch]);
 
   if (!isBootstrapped) {

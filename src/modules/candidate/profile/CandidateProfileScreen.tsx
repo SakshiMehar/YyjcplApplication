@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  ImageBackground,
   Linking,
   Modal,
   ScrollView,
@@ -15,14 +16,13 @@ import {
   Award,
   BriefcaseBusiness,
   CalendarCheck,
-  ChevronRight,
+  Camera,
   FileText,
   FolderOpen,
   Globe,
   GraduationCap,
   Languages,
   Link2,
-  LogOut,
   MapPin,
   Pencil,
   Settings,
@@ -36,9 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton, AppText, UserAvatar } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { CandidateStackParamList } from '../../../navigation/types';
-import { clearToken } from '../../../services/secureStorage';
-import { useAppDispatch, useAppSelector } from '../../../store/hooks';
-import { logout } from '../../../store/slices/authSlice';
+import { useAppSelector } from '../../../store/hooks';
 import {
   colors,
   font,
@@ -57,6 +55,7 @@ import {
   useGetProjectsQuery,
   useAddProjectMutation,
 } from '../api/candidateApi';
+import { getProfilePictureHeaders, resolveBackendUrl } from '../utils/resume';
 
 type Nav = NativeStackNavigationProp<CandidateStackParamList>;
 
@@ -245,46 +244,11 @@ function SkillChip({ label }: { label: string }) {
   );
 }
 
-/* ─── Action row ─────────────────────────────────────────────────────────── */
-function ActionRow({
-  icon,
-  label,
-  onPress,
-  destructive = false,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-      accessibilityRole="button">
-      <View style={[styles.actionIcon, destructive && styles.actionIconDestructive]}>
-        {icon}
-      </View>
-      <AppText
-        variant="body"
-        style={[styles.actionLabel, destructive && styles.actionLabelDestructive]}
-        numberOfLines={1}>
-        {label}
-      </AppText>
-      <ChevronRight size={scale(16)} color={destructive ? colors.danger : colors.textMuted} />
-    </Pressable>
-  );
-}
-
-function Divider() {
-  return <View style={styles.divider} />;
-}
-
 /* ─── Main Screen ────────────────────────────────────────────────────────── */
 export default function CandidateProfileScreen() {
   const navigation = useNavigation<Nav>();
-  const dispatch = useAppDispatch();
   const user = useAppSelector(s => s.auth.user);
+  const token = useAppSelector(s => s.auth.token);
   const insets = useSafeAreaInsets();
 
   const { data: profile, isLoading, isError } = useGetJobSeekerProfileQuery();
@@ -593,11 +557,6 @@ export default function CandidateProfileScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    await clearToken();
-    dispatch(logout());
-  };
-
   const skillList = profile?.skills
     ? profile.skills.split(',').filter(s => s.trim().length > 0)
     : [];
@@ -606,7 +565,10 @@ export default function CandidateProfileScreen() {
   const goFullEdit = () => navigation.navigate('EditCandidateProfile');
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+    <ImageBackground
+      source={require('../../../assets/illustrations/profilepage img.png')}
+      resizeMode="stretch"
+      style={[styles.root, { paddingBottom: insets.bottom }]}>
 
       {/* ════════════════════════════════════════════
           Quick-edit modal — 4 hero fields only
@@ -1309,9 +1271,35 @@ export default function CandidateProfileScreen() {
 
         {/* ── Hero Header ── */}
         <View style={[styles.hero, { paddingTop: insets.top + vs(24) }]}>
-          <View style={styles.avatarRing}>
-            <UserAvatar name={user?.name} uri={user?.avatarUrl} size={scale(96)} />
-          </View>
+          <Pressable
+            onPress={() => navigation.navigate('Settings')}
+            style={[styles.settingsButton, { top: insets.top + vs(14) }]}
+            hitSlop={scale(8)}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings">
+            <Settings size={scale(21)} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={goFullEdit}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profile picture"
+            style={styles.avatarEditWrap}>
+            <View style={styles.avatarRing}>
+              <UserAvatar
+                name={user?.name}
+                uri={
+                  profile?.profilePictureUrl
+                    ? resolveBackendUrl(profile.profilePictureUrl)
+                    : user?.avatarUrl
+                }
+                headers={getProfilePictureHeaders(profile?.profilePictureUrl, token)}
+                size={scale(96)}
+              />
+            </View>
+            <View style={styles.avatarCameraBadge}>
+              <Camera size={scale(14)} color={colors.textOnPrimary} />
+            </View>
+          </Pressable>
 
           <View style={styles.nameRow}>
             <AppText variant="h2" style={styles.heroName} numberOfLines={1}>
@@ -1744,37 +1732,8 @@ export default function CandidateProfileScreen() {
           </View>
         </View>
 
-        {/* ── Account Actions ── */}
-        <View style={styles.section}>
-          <SectionTitle label="Account" />
-          <View style={styles.card}>
-            <ActionRow
-              icon={<Settings size={sizes.iconSm} color={colors.primary} />}
-              label="Settings"
-              onPress={() => navigation.navigate('Settings')}
-            />
-            <Divider />
-            <ActionRow
-              icon={<TriangleAlert size={sizes.iconSm} color={colors.primary} />}
-              label="Raise a Complaint"
-              onPress={() => navigation.navigate('RaiseComplaint')}
-            />
-          </View>
-        </View>
-
-        {/* ── Logout ── */}
-        <View style={[styles.section, styles.lastSection]}>
-          <View style={styles.card}>
-            <ActionRow
-              icon={<LogOut size={sizes.iconSm} color={colors.danger} />}
-              label="Logout"
-              onPress={handleLogout}
-              destructive
-            />
-          </View>
-        </View>
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -1979,7 +1938,7 @@ const certStyles = StyleSheet.create({
 
 /* ─── Styles ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.surface },
+  root: { flex: 1, backgroundColor: colors.transparent },
   scrollContent: { paddingBottom: vs(32) },
   languageRow: {
     flexDirection: 'row',
@@ -1990,7 +1949,7 @@ const styles = StyleSheet.create({
 
   /* Hero */
   hero: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.transparent,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
     paddingBottom: vs(24),
@@ -1998,12 +1957,37 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     marginBottom: vs(20),
   },
+  settingsButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    width: scale(42),
+    height: scale(42),
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+  },
   avatarRing: {
     borderRadius: scale(52),
     borderWidth: 3,
     borderColor: colors.primarySoft,
-    marginBottom: vs(14),
     overflow: 'hidden',
+  },
+  avatarEditWrap: { position: 'relative', marginBottom: vs(14) },
+  avatarCameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: scale(28),
+    height: scale(28),
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
   },
   nameRow: {
     flexDirection: 'row',

@@ -23,7 +23,6 @@ export default function OnboardingEmployerScreen({
       renderIllustration={size =>
         ILLUSTRATIONS.onboardingEmployer ? (
           <ImageScene size={size} image={ILLUSTRATIONS.onboardingEmployer}>
-            {/* left: candidate profile tile */}
             <FloatingTile base={size} style={{ left: size * 0.02, top: size * 0.38 }}>
               <Avatar size={size * 0.085} tone="soft" />
               <View
@@ -36,8 +35,6 @@ export default function OnboardingEmployerScreen({
                 }}
               />
             </FloatingTile>
-
-            {/* right: shortlisted check tile */}
             <FloatingTile base={size} style={{ right: size * 0.02, top: size * 0.2 }}>
               <View
                 style={{
@@ -61,6 +58,7 @@ export default function OnboardingEmployerScreen({
           <HiringIllustration size={size} />
         )
       }
+      backgroundImage={require('../../../assets/illustrations/interview screen.png')}
       onNext={() => navigation.navigate('Login')}
     />
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Alert,
   ScrollView,
@@ -28,7 +28,7 @@ import {
   spacing,
   vs,
 } from '../../../theme';
-import { useCreateJobMutation } from '../api/recruiterApi';
+import { useCreateJobMutation, useGetRecruiterProfileQuery } from '../api/recruiterApi';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 type JobForm = {
@@ -156,8 +156,9 @@ export default function PostJobScreen({
 }: RecruiterScreenProps<'PostJob'>) {
   const insets = useSafeAreaInsets();
   const [createJob, { isLoading }] = useCreateJobMutation();
+  const { data: recruiterProfile } = useGetRecruiterProfileQuery();
 
-  const { control, handleSubmit, reset } = useForm<JobForm>({
+  const { control, handleSubmit, reset, setValue } = useForm<JobForm>({
     defaultValues: {
       companyName: '',
       role: '',
@@ -167,6 +168,16 @@ export default function PostJobScreen({
       location: '',
     },
   });
+
+  // Auto-fill company name from recruiter profile once loaded
+  useEffect(() => {
+    if (recruiterProfile?.companyName) {
+      setValue('companyName', recruiterProfile.companyName, {
+        shouldValidate: false,
+        shouldDirty: false,
+      });
+    }
+  }, [recruiterProfile?.companyName, setValue]);
 
   // Live preview values
   const watched = useWatch({ control });

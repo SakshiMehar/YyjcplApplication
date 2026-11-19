@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TextInputProps, View } from 'react-native';
+import { StyleProp, StyleSheet, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { colors, font, MAX_FONT_MULTIPLIER, radius, scale, sizes, spacing } from '../../theme';
 import AppText from './AppText';
 
@@ -8,6 +8,8 @@ export type AppInputProps = TextInputProps & {
   error?: string;
   /** Helper text under the field (hidden while an error is shown). */
   hint?: string;
+  wrapperStyle?: StyleProp<ViewStyle>;
+  fieldStyle?: StyleProp<ViewStyle>;
   /** Content inside the field on the left, e.g. an icon or "+91". */
   leftElement?: React.ReactNode;
   /** Content inside the field on the right, e.g. a show/hide password button. */
@@ -18,6 +20,8 @@ export default function AppInput({
   label,
   error,
   hint,
+  wrapperStyle,
+  fieldStyle,
   leftElement,
   rightElement,
   style,
@@ -28,13 +32,19 @@ export default function AppInput({
   const [focused, setFocused] = useState(false);
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, wrapperStyle]}>
       {label ? (
         <AppText variant="caption" color="textSecondary" style={styles.label}>
           {label}
         </AppText>
       ) : null}
-      <View style={[styles.field, focused && styles.fieldFocused, !!error && styles.fieldError]}>
+      <View
+        style={[
+          styles.field,
+          fieldStyle,
+          focused && styles.fieldFocused,
+          !!error && styles.fieldError,
+        ]}>
         {leftElement ? <View style={styles.left}>{leftElement}</View> : null}
         <TextInput
           placeholderTextColor={colors.textMuted}

@@ -2,9 +2,63 @@ import type { FetchBaseQueryMeta } from '@reduxjs/toolkit/query';
 import { baseApi } from '../../../store/api/baseApi';
 import { ID } from '../../../types/models';
 import { logApi } from '../../../utils/apiLogger';
+import { resolveProfilePictureUrl } from '../utils/resume';
 
 const httpStatus = (meta: unknown) =>
   (meta as FetchBaseQueryMeta | undefined)?.response?.status;
+
+const asProfileRecord = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+
+function findProfilePictureUrl(value: unknown, depth = 0): string | undefined {
+  if (depth > 4) return undefined;
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  const record = asProfileRecord(value);
+  if (!record) return undefined;
+
+  for (const key of ['profilePictureUrl', 'profileImageUrl', 'avatarUrl', 'imageUrl', 'url']) {
+    const candidate = record[key];
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+  }
+
+  const profilePictureFileName = asProfileRecord(record.profilePicture)?.fileName;
+  if (typeof profilePictureFileName === 'string' && profilePictureFileName.trim()) {
+    return profilePictureFileName.trim();
+  }
+
+  for (const key of ['data', 'profile', 'jobSeekerProfile', 'user', 'profilePicture']) {
+    const candidate = findProfilePictureUrl(record[key], depth + 1);
+    if (candidate) return candidate;
+  }
+  return undefined;
+}
+
+export function extractProfilePictureUrl(response: unknown): string | undefined {
+  const url = findProfilePictureUrl(response);
+  return url ? resolveProfilePictureUrl(url) : undefined;
+}
+
+function normalizeJobSeekerProfile(response: unknown): JobSeekerProfile {
+  const outer = asProfileRecord(response);
+  let profile = outer;
+  for (let depth = 0; depth < 4 && profile; depth += 1) {
+    const nested =
+      asProfileRecord(profile.data) ??
+      asProfileRecord(profile.profile) ??
+      asProfileRecord(profile.jobSeekerProfile);
+    if (!nested) break;
+    profile = nested;
+  }
+  if (!profile) {
+    throw new Error('Unexpected job-seeker profile response.');
+  }
+  return {
+    ...(profile as JobSeekerProfile),
+    profilePictureUrl: extractProfilePictureUrl(response),
+  };
+}
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -48,8 +102,16 @@ export type JobSeekerJobsParams = {
   maxSalaryLpa?: number;
 };
 
+export type CareerPreferences = {
+  lookingFor: 'JOB' | 'INTERNSHIP';
+  preferredJobRoles: string[];
+  expectedSalaryPerYear: number;
+  preferredLocations: string[];
+};
+
 /** Shape returned by GET /api/job-seeker/profile */
 export type JobSeekerProfile = {
+  profilePictureUrl?: string;
   headline?: string;
   professionalSummary?: string;
   experience?: string;
@@ -149,6 +211,26 @@ const asText = (...values: unknown[]): string | undefined => {
   const value = values.find(item => typeof item === 'string' || typeof item === 'number');
   return value === undefined ? undefined : String(value);
 };
+
+function normalizeCareerPreferences(response: unknown): CareerPreferences {
+  const outer = asRecord(response);
+  const body = asRecord(outer?.data) ?? outer;
+  const roles = Array.isArray(body?.preferredJobRoles)
+    ? body.preferredJobRoles.filter((value): value is string => typeof value === 'string')
+    : [];
+  const locations = Array.isArray(body?.preferredLocations)
+    ? body.preferredLocations.filter((value): value is string => typeof value === 'string')
+    : [];
+  const lookingFor = body?.lookingFor === 'INTERNSHIP' ? 'INTERNSHIP' : 'JOB';
+  const salary = Number(body?.expectedSalaryPerYear);
+
+  return {
+    lookingFor,
+    preferredJobRoles: roles,
+    expectedSalaryPerYear: Number.isFinite(salary) ? salary : 0,
+    preferredLocations: locations,
+  };
+}
 
 function normalizeApplications(res: unknown): JobSeekerApplication[] {
   const body = asRecord(res);
@@ -257,6 +339,7 @@ function normalizeApplications(res: unknown): JobSeekerApplication[] {
           },
     }];
   });
+
 }
 
 function normalizeJobs(res: unknown): JobSeekerJob[] {
@@ -281,7 +364,7 @@ function normalizeJobs(res: unknown): JobSeekerJob[] {
     throw new Error('Unexpected saved jobs response: expected a jobs array.');
   }
 
-  return list.flatMap(item => {
+  const jobs = list.flatMap(item => {
     const savedItem = asRecord(item);
     if (!savedItem) return [];
     const job =
@@ -309,6 +392,11 @@ function normalizeJobs(res: unknown): JobSeekerJob[] {
       postedAt: asText(job.postedAt, job.createdAt),
     }];
   });
+
+  // A job can appear more than once in some backend responses (for example,
+  // when it matches more than one recommendation rule). Keep the first copy so
+  // every rendered item has one stable, unique job ID.
+  return [...new Map(jobs.map(job => [job.id, job])).values()];
 }
 
 /** Single project from GET /api/job-seeker/projects */
@@ -356,6 +444,20 @@ export type Certification = {
   certificationExpired: boolean;
 };
 
+/** A blocked company entry from GET /api/recruiter/blocked-job-seekers */
+export type BlockedCompanyEntry = {
+  // Backend may use any of these field names — handle all variants
+  targetUserId?: number;
+  recruiterId?: number;
+  userId?: number;
+  id?: number;
+  targetRole?: string;
+  blocked?: boolean;
+  blockedAt?: string;
+  companyName?: string;
+  recruiterName?: string;
+};
+
 /* ─── Endpoints ──────────────────────────────────────────────────────────── */
 
 export const candidateApi = baseApi.injectEndpoints({
@@ -363,6 +465,7 @@ export const candidateApi = baseApi.injectEndpoints({
     /* GET /api/job-seeker/profile */
     getJobSeekerProfile: build.query<JobSeekerProfile, void>({
       query: () => '/job-seeker/profile',
+      transformResponse: normalizeJobSeekerProfile,
       providesTags: ['CandidateProfile'],
     }),
 
@@ -373,6 +476,35 @@ export const candidateApi = baseApi.injectEndpoints({
         method: 'PUT',
         body,
         headers: { 'Content-Type': 'application/json' },
+      }),
+      invalidatesTags: ['CandidateProfile'],
+    }),
+
+    /* GET /api/job-seeker/career-preferences */
+    getCareerPreferences: build.query<CareerPreferences, void>({
+      query: () => '/job-seeker/career-preferences',
+      transformResponse: normalizeCareerPreferences,
+      providesTags: ['CandidateProfile'],
+    }),
+
+    /* PUT /api/job-seeker/career-preferences */
+    updateCareerPreferences: build.mutation<CareerPreferences, CareerPreferences>({
+      query: body => ({
+        url: '/job-seeker/career-preferences',
+        method: 'PUT',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      transformResponse: normalizeCareerPreferences,
+      invalidatesTags: ['CandidateProfile'],
+    }),
+
+    /* POST /api/job-seeker/profile-picture — JWT-authenticated multipart/form-data */
+    uploadJobSeekerProfilePicture: build.mutation<unknown, FormData>({
+      query: formData => ({
+        url: '/job-seeker/profile-picture',
+        method: 'POST',
+        body: formData,
       }),
       invalidatesTags: ['CandidateProfile'],
     }),
@@ -494,6 +626,43 @@ export const candidateApi = baseApi.injectEndpoints({
       invalidatesTags: ['Certification'],
     }),
 
+    /* GET /api/job-seeker/blocked-companies — job seeker's blocked companies list */
+    getBlockedCompanies: build.query<BlockedCompanyEntry[], void>({
+      query: () => '/job-seeker/blocked-companies',
+      transformResponse: (res: unknown) => {
+        console.log('[BlockedCompanies] GET response:', JSON.stringify(res, null, 2));
+        if (Array.isArray(res)) return res as BlockedCompanyEntry[];
+        const r = res as { items?: unknown; data?: unknown };
+        const list = r.items ?? r.data;
+        return Array.isArray(list) ? (list as BlockedCompanyEntry[]) : [];
+      },
+      providesTags: ['BlockedCompany'],
+    }),
+
+    /* PUT /api/job-seeker/companies/{recruiterId}/block — block a company */
+    blockCompany: build.mutation<BlockedCompanyEntry, { recruiterId: number }>({
+      query: ({ recruiterId }) => {
+        console.log('[BlockedCompanies] PUT block recruiterId:', recruiterId);
+        return {
+          url: `/job-seeker/companies/${recruiterId}/block`,
+          method: 'PUT',
+        };
+      },
+      invalidatesTags: ['BlockedCompany'],
+    }),
+
+    /* DELETE /api/job-seeker/companies/{recruiterId}/block — unblock a company */
+    unblockCompany: build.mutation<void, { recruiterId: number }>({
+      query: ({ recruiterId }) => {
+        console.log('[BlockedCompanies] DELETE unblock recruiterId:', recruiterId);
+        return {
+          url: `/job-seeker/companies/${recruiterId}/block`,
+          method: 'DELETE',
+        };
+      },
+      invalidatesTags: ['BlockedCompany'],
+    }),
+
     /* GET /api/job-seeker/jobs */
     getJobSeekerJobs: build.query<JobSeekerJob[], JobSeekerJobsParams | void>({
       query: params => {
@@ -554,12 +723,30 @@ export const candidateApi = baseApi.injectEndpoints({
       transformResponse: normalizeJobs,
       providesTags: ['Job'],
     }),
+    /* GET /api/job-seeker/jobs/recommended */
+    getRecommendedJobs: build.query<JobSeekerJob[], void>({
+      query: () => '/job-seeker/jobs/recommended',
+      transformResponse: normalizeJobs,
+      providesTags: ['Job'],
+    }),
+    /* GET /api/job-seeker/jobs/search?keyword=... */
+    searchJobSeekerJobs: build.query<JobSeekerJob[], { keyword: string }>({
+      query: ({ keyword }) => ({
+        url: '/job-seeker/jobs/search',
+        params: { keyword },
+      }),
+      transformResponse: normalizeJobs,
+      providesTags: ['Job'],
+    }),
   }),
 });
 
 export const {
   useGetJobSeekerProfileQuery,
   useUpdateJobSeekerProfileMutation,
+  useGetCareerPreferencesQuery,
+  useUpdateCareerPreferencesMutation,
+  useUploadJobSeekerProfilePictureMutation,
   useUploadResumeMutation,
   useApplyToJobMutation,
   useSaveJobMutation,
@@ -570,5 +757,10 @@ export const {
   useAddProjectMutation,
   useGetCertificationsQuery,
   useAddCertificationMutation,
+  useGetBlockedCompaniesQuery,
+  useBlockCompanyMutation,
+  useUnblockCompanyMutation,
   useGetJobSeekerJobsQuery,
+  useGetRecommendedJobsQuery,
+  useLazySearchJobSeekerJobsQuery,
 } = candidateApi;

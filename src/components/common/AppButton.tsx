@@ -35,6 +35,7 @@ export default function AppButton({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      radialFill
       style={({ pressed }) => [
         styles.base,
         styles[variant],

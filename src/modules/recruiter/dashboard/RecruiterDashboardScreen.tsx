@@ -161,7 +161,7 @@ export default function RecruiterDashboardScreen() {
   const { data: shortlistedCount }                      = useGetShortlistedCountQuery();
   const { data: applications = [], isLoading: appsLoading } = useGetJobApplicationsQuery();
   const { data: notifications }                         = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => !n.read);
 
   const companyName = recruiterProfile?.companyName ?? pendingName ?? 'Your Company';
   const recentApps = applications.slice(0, RECENT_COUNT);
@@ -324,7 +324,7 @@ export default function RecruiterDashboardScreen() {
 
 /* ─── Styles ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FDF6EF' },
+  root: { flex: 1, backgroundColor: 'transparent' },
   scroll: { paddingHorizontal: spacing.lg },
 
   /* Hero card */

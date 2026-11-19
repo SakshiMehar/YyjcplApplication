@@ -75,9 +75,9 @@ export default function ResumeTemplatesScreen({
           Could not load templates. Tap to try again.
         </AppText>
       ) : (
-        templates.map(template => (
+        templates.map((template, index) => (
           <TemplateCard
-            key={template.id}
+            key={`${template.id}-${index}`}
             template={template}
             onPress={() => chooseTemplate(template.id)}
           />

@@ -31,6 +31,7 @@ type Props = {
   visible: boolean;
   name?: string;
   avatarUrl?: string;
+  avatarHeaders?: Record<string, string>;
   onClose: () => void;
   onSelect: (action: MoreMenuAction) => void;
 };
@@ -55,7 +56,14 @@ function MenuItem({ icon, label, onPress }: MenuItemProps) {
 }
 
 /** Job-seeker home navigation drawer. */
-export default function CandidateMoreMenu({ visible, name, avatarUrl, onClose, onSelect }: Props) {
+export default function CandidateMoreMenu({
+  visible,
+  name,
+  avatarUrl,
+  avatarHeaders,
+  onClose,
+  onSelect,
+}: Props) {
   const insets = useSafeAreaInsets();
   const choose = (action: MoreMenuAction) => {
     onClose();
@@ -77,7 +85,7 @@ export default function CandidateMoreMenu({ visible, name, avatarUrl, onClose, o
               accessibilityRole="button"
               accessibilityLabel="Open profile"
               style={({ pressed }) => [styles.profile, pressed && styles.itemPressed]}>
-              <UserAvatar name={name} uri={avatarUrl} size={scale(48)} />
+              <UserAvatar name={name} uri={avatarUrl} headers={avatarHeaders} size={scale(48)} />
               <View style={styles.profileText}>
                 <AppText variant="bodyBold" numberOfLines={1}>{name || 'My profile'}</AppText>
                 <AppText variant="caption" color="primary">View profile</AppText>

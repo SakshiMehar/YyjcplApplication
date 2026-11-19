@@ -6,6 +6,7 @@ import {
   FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
 import { ENV } from '../../config/env';
+import { clearAuthSession } from '../../services/secureStorage';
 import { logout } from '../slices/authSlice';
 import type { RootState } from '../index';
 
@@ -32,6 +33,11 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 ) => {
   const result = await rawBaseQuery(args, api, extraOptions);
   if (result.error?.status === 401) {
+    try {
+      await clearAuthSession();
+    } catch (error) {
+      console.warn('[Auth] Could not clear the expired session.', error);
+    }
     api.dispatch(logout());
   }
   return result;
@@ -50,6 +56,8 @@ export const baseApi = createApi({
     'Resume',
     'Certification',
     'Project',
+    'BlockedCompany',
+    'BlockedCandidate',
     'Company',
     'Job',
     'SavedJob',

@@ -24,6 +24,11 @@ import ResumePreviewScreen from '../modules/resume/screens/ResumePreviewScreen';
 import RaiseComplaintScreen from '../modules/shared/complaints/RaiseComplaintScreen';
 import NotificationsScreen from '../modules/shared/notifications/NotificationsScreen';
 import SettingsScreen from '../modules/shared/settings/SettingsScreen';
+import AccountScreen from '../modules/shared/account/AccountScreen';
+import ChangePasswordScreen from '../modules/shared/account/ChangePasswordScreen';
+import CareerPreferencesScreen from '../modules/candidate/settings/CareerPreferencesScreen';
+import CommunicationPrivacyScreen from '../modules/candidate/settings/CommunicationPrivacyScreen';
+import BlockedCompaniesScreen from '../modules/candidate/settings/BlockedCompaniesScreen';
 import {
   BriefcaseBusiness,
   CalendarDays,
@@ -97,6 +102,11 @@ export default function CandidateNavigator() {
       <Stack.Screen name="SavedJobs" component={SavedJobsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Account" component={AccountScreen} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <Stack.Screen name="CareerPreferences" component={CareerPreferencesScreen} />
+      <Stack.Screen name="CommunicationPrivacy" component={CommunicationPrivacyScreen} />
+      <Stack.Screen name="BlockedCompanies" component={BlockedCompaniesScreen} />
       <Stack.Screen name="RaiseComplaint" component={RaiseComplaintScreen} />
     </Stack.Navigator>
   );

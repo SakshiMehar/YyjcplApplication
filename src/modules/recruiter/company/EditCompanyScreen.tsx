@@ -16,16 +16,24 @@ import {
   FileText,
   Globe,
   MapPin,
-  Pencil,
   Tag,
 } from 'lucide-react-native';
+import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
+import type { DocumentPickerResponse } from '@react-native-documents/picker';
 import { AppButton, AppText } from '../../../components/common';
 import { RecruiterScreenProps } from '../../../navigation/types';
+import { useAppSelector } from '../../../store/hooks';
 import { colors, font, MAX_FONT_MULTIPLIER, radius, scale, spacing, vs } from '../../../theme';
 import {
   useGetRecruiterProfileQuery,
   useUpsertRecruiterProfileMutation,
+  useUploadRecruiterProfilePictureMutation,
 } from '../api/recruiterApi';
+import {
+  getProfilePictureHeaders,
+  resolveProfilePictureUrl,
+} from '../../candidate/utils/resume';
+import { normalizeRecruiterProfile } from '../api/recruiterApi';
 
 /* ─── Field component ────────────────────────────────────────────────────── */
 function Field({
@@ -76,6 +84,21 @@ function Field({
   );
 }
 
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+function getImageMimeType(file: DocumentPickerResponse): string | undefined {
+  if (file.type?.startsWith('image/')) return file.type;
+  const extension = file.name?.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+  return extension ? mimeTypes[extension] : undefined;
+}
+
 /* ─── Section label ──────────────────────────────────────────────────────── */
 function SectionLabel({ label }: { label: string }) {
   return (
@@ -91,8 +114,11 @@ function SectionLabel({ label }: { label: string }) {
 /* ─── Main Screen ────────────────────────────────────────────────────────── */
 export default function EditCompanyScreen({ navigation }: RecruiterScreenProps<'EditCompany'>) {
   const insets = useSafeAreaInsets();
-  const { data: existing } = useGetRecruiterProfileQuery();
+  const token = useAppSelector(state => state.auth.token);
+  const { data: existing, refetch: refetchProfile } = useGetRecruiterProfileQuery();
   const [upsert, { isLoading }] = useUpsertRecruiterProfileMutation();
+  const [uploadProfilePicture, { isLoading: isUploadingPicture }] =
+    useUploadRecruiterProfilePictureMutation();
 
   const [companyName,        setCompanyName]        = useState('');
   const [companyWebsite,     setCompanyWebsite]     = useState('');
@@ -100,6 +126,9 @@ export default function EditCompanyScreen({ navigation }: RecruiterScreenProps<'
   const [companyDescription, setCompanyDescription] = useState('');
   const [companyLocation,    setCompanyLocation]    = useState('');
   const [profilePictureUrl,  setProfilePictureUrl]  = useState('');
+
+  // Pending picked image — uploaded on "Save Profile"
+  const [selectedPicture, setSelectedPicture] = useState<DocumentPickerResponse | null>(null);
 
   // Pre-fill once data loads
   useEffect(() => {
@@ -113,25 +142,88 @@ export default function EditCompanyScreen({ navigation }: RecruiterScreenProps<'
     }
   }, [existing]);
 
+  // ── Pick an image from the device gallery ──
+  const handlePickPicture = async () => {
+    try {
+      const [file] = await pick({ type: [types.images] });
+      if (!file.hasRequestedType || !getImageMimeType(file)) {
+        Alert.alert('Invalid image', 'Please select a valid image file (JPG, PNG, WebP).');
+        return;
+      }
+      setSelectedPicture(file);
+      // Show a local preview immediately
+      setProfilePictureUrl(file.uri);
+    } catch (error) {
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) return;
+      Alert.alert('Could not select image', 'Please try again.');
+    }
+  };
+
   const handleSave = async () => {
     if (!companyName.trim()) {
       Alert.alert('Required', 'Please enter your company name.');
       return;
     }
+
     try {
+      let savedPictureUrl = profilePictureUrl.trim() || undefined;
+
+      // If a new image was picked, upload it first
+      if (selectedPicture) {
+        const mimeType = getImageMimeType(selectedPicture);
+        if (!mimeType) {
+          Alert.alert('Invalid image', 'The selected file is not a supported image.');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', {
+          uri: selectedPicture.uri,
+          name: selectedPicture.name ?? 'profile-picture',
+          type: mimeType,
+        } as unknown as Blob);
+
+        const uploadResult = await uploadProfilePicture(formData).unwrap();
+
+        // Extract the returned URL — backend may return it in different shapes
+        const normalized = normalizeRecruiterProfile(
+          typeof uploadResult === 'object' && uploadResult !== null
+            ? uploadResult
+            : { profilePictureUrl: savedPictureUrl },
+        );
+        savedPictureUrl =
+          normalized.profilePictureUrl ??
+          (await refetchProfile().unwrap()).profilePictureUrl ??
+          savedPictureUrl;
+
+        setSelectedPicture(null);
+      }
+
       await upsert({
         companyName:        companyName.trim(),
         companyWebsite:     companyWebsite.trim()     || undefined,
         companyIndustry:    companyIndustry.trim()    || undefined,
         companyDescription: companyDescription.trim() || undefined,
         companyLocation:    companyLocation.trim()    || undefined,
-        profilePictureUrl:  profilePictureUrl.trim()  || undefined,
+        profilePictureUrl:  savedPictureUrl,
       }).unwrap();
+
       Alert.alert('Saved', 'Company profile updated successfully.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
-    } catch {
-      Alert.alert('Could not save', 'Please check your connection and try again.');
+    } catch (error) {
+      const response = error as {
+        status?: number | string;
+        data?: { message?: string; error?: string };
+      };
+      Alert.alert(
+        'Could not save',
+        response.data?.message ??
+          response.data?.error ??
+          (response.status === 'FETCH_ERROR' || response.status === 'TIMEOUT_ERROR'
+            ? "Can't reach the server. Check your connection and try again."
+            : 'Please check your profile details and try again.'),
+      );
     }
   };
 
@@ -162,39 +254,40 @@ export default function EditCompanyScreen({ navigation }: RecruiterScreenProps<'
 
         {/* ── Profile picture section ── */}
         <View style={styles.picSection}>
-          <View style={styles.picWrap}>
-            {profilePictureUrl ? (
-              <Image
-                source={{ uri: profilePictureUrl }}
-                style={styles.picImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.picPlaceholder}>
-                <Building2 size={scale(36)} color={colors.primary} />
+          <Pressable
+            onPress={handlePickPicture}
+            accessibilityLabel="Change profile picture"
+            accessibilityRole="button">
+            <View style={styles.picWrap}>
+              {profilePictureUrl ? (
+                <Image
+                  source={
+                    // Local uri from picker doesn't need auth headers
+                    selectedPicture
+                      ? { uri: profilePictureUrl }
+                      : {
+                          uri: resolveProfilePictureUrl(profilePictureUrl),
+                          headers: getProfilePictureHeaders(profilePictureUrl, token),
+                        }
+                  }
+                  style={styles.picImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.picPlaceholder}>
+                  <Building2 size={scale(36)} color={colors.primary} />
+                </View>
+              )}
+              {/* Edit overlay */}
+              <View style={styles.picEditBadge}>
+                <Camera size={scale(14)} color={colors.textOnPrimary} />
               </View>
-            )}
-            {/* Edit overlay */}
-            <View style={styles.picEditBadge}>
-              <Camera size={scale(14)} color={colors.textOnPrimary} />
             </View>
-          </View>
+          </Pressable>
           <AppText variant="caption" color="textSecondary" style={styles.picHint}>
-            Paste a profile picture URL below
+            {selectedPicture ? selectedPicture.name ?? 'Image selected' : 'Tap to change photo'}
           </AppText>
         </View>
-
-        {/* ── Profile Picture URL ── */}
-        <SectionLabel label="Profile Picture" />
-        <Field
-          label="Profile Picture URL"
-          value={profilePictureUrl}
-          onChange={setProfilePictureUrl}
-          placeholder="https://cdn.example.com/logo.png"
-          icon={<Camera size={scale(16)} color={profilePictureUrl ? colors.primary : colors.textMuted} />}
-          keyboardType="url"
-          autoCapitalize="none"
-        />
 
         {/* ── Company info ── */}
         <SectionLabel label="Company Information" />
@@ -257,7 +350,7 @@ export default function EditCompanyScreen({ navigation }: RecruiterScreenProps<'
         <AppButton
           title="Save Profile"
           onPress={handleSave}
-          loading={isLoading}
+          loading={isLoading || isUploadingPicture}
         />
       </View>
     </View>

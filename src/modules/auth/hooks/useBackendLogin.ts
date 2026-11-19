@@ -1,6 +1,7 @@
 import { ApiRole, USER_ROLES } from '../../../constants/roles';
 import { signOutFirebase } from '../../../services/firebase/auth';
-import { saveToken } from '../../../services/secureStorage';
+import { saveAuthSession } from '../../../services/secureStorage';
+import { getFcmLoginFields } from '../../../services/firebase/messaging';
 import { setCredentials } from '../../../store/slices/authSlice';
 import { useAppDispatch } from '../../../store/hooks';
 import { useFirebaseLoginMutation } from '../api/authApi';
@@ -25,10 +26,12 @@ export function useBackendLogin() {
 
   const login = async (idToken: string, role: ApiRole, fullName?: string) => {
     try {
+      const fcmFields = await getFcmLoginFields();
       const { token, user } = await firebaseLogin({
         idToken,
         role,
         ...(fullName ? { fullName: fullName.trim() } : {}),
+        ...fcmFields,
       }).unwrap();
       if (!token) {
         throw { data: { message: 'Login failed: the server did not return a session token.' } };
@@ -36,7 +39,7 @@ export function useBackendLogin() {
       if (__DEV__ && user.role === USER_ROLES.CANDIDATE) {
         console.log('[Auth] Job seeker token:', token);
       }
-      await saveToken(token);
+      await saveAuthSession(token, user);
       dispatch(setCredentials({ token, user }));
     } catch (error) {
       await signOutFirebase().catch(() => {});

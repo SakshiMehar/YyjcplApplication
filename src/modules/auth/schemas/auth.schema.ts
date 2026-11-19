@@ -61,6 +61,12 @@ export const resetPasswordSchema = z
   });
 export type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
+export const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, 'Enter your current password'),
+  newPassword: strongPassword,
+});
+export type ChangePasswordForm = z.infer<typeof changePasswordSchema>;
+
 /* ---------- OTP ---------- */
 export const otpSchema = z.object({
   otp: z.string().regex(/^\d{6}$/, 'Enter the 6-digit OTP'),

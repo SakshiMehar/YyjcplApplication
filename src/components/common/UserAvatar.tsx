@@ -1,16 +1,30 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { colors, font } from '../../theme';
 import { initials } from '../../utils/format';
 import AppText from './AppText';
 
-type Props = { name?: string; uri?: string; size: number };
+type Props = {
+  name?: string;
+  uri?: string;
+  size: number;
+  headers?: Record<string, string>;
+};
 
 /** Profile photo, or the user's initials on a soft orange circle. */
-export default function UserAvatar({ name, uri, size }: Props) {
+export default function UserAvatar({ name, uri, size, headers }: Props) {
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  useEffect(() => setImageLoadFailed(false), [uri]);
+
   const circle = { width: size, height: size, borderRadius: size / 2 };
-  if (uri) {
-    return <Image source={{ uri }} style={[styles.base, circle]} />;
+  if (uri && !imageLoadFailed) {
+    return (
+      <Image
+        source={{ uri, headers }}
+        style={[styles.base, circle]}
+        onError={() => setImageLoadFailed(true)}
+      />
+    );
   }
   return (
     <View style={[styles.base, styles.fallback, circle]}>

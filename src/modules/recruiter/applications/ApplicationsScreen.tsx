@@ -315,7 +315,7 @@ export default function ApplicationsScreen() {
 
 /* ─── Styles ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#FDF6EF' },
+  root: { flex: 1, backgroundColor: 'transparent' },
 
   /* Hero */
   hero: {

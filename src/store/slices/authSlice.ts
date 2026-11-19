@@ -31,6 +31,9 @@ const authSlice = createSlice({
       state.token = action.payload.token;
       state.user = action.payload.user;
     },
+    setToken(state, action: PayloadAction<string>) {
+      state.token = action.payload;
+    },
     setBootstrapped(state) {
       state.isBootstrapped = true;
     },
@@ -41,5 +44,12 @@ const authSlice = createSlice({
   },
 });
 
-export const { setSelectedRole, clearSelectedRole, setCredentials, setBootstrapped, logout } = authSlice.actions;
+export const {
+  setSelectedRole,
+  clearSelectedRole,
+  setCredentials,
+  setToken,
+  setBootstrapped,
+  logout,
+} = authSlice.actions;
 export default authSlice.reducer;

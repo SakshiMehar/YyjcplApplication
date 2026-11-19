@@ -1,18 +1,80 @@
 import * as Keychain from 'react-native-keychain';
+import type { User } from '../types/models';
 
 const TOKEN_SERVICE = 'com.yyjcpl.app.auth';
+const DEACTIVATED_ACCOUNT_SERVICE = 'com.yyjcpl.app.deactivatedAccount';
 
-export async function saveToken(token: string): Promise<void> {
-  await Keychain.setGenericPassword('auth', token, { service: TOKEN_SERVICE });
+export type AuthSession = {
+  token: string;
+  user?: User;
+};
+
+function isAuthSession(value: unknown): value is AuthSession {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const session = value as Partial<AuthSession>;
+  const user = session.user;
+  return (
+    typeof session.token === 'string' &&
+    session.token.length > 0 &&
+    typeof user === 'object' &&
+    user !== null &&
+    typeof user.id === 'string' &&
+    (user.role === 'CANDIDATE' || user.role === 'RECRUITER') &&
+    typeof user.name === 'string' &&
+    typeof user.phone === 'string' &&
+    typeof user.isVerified === 'boolean'
+  );
 }
 
-export async function getToken(): Promise<string | null> {
+export async function saveAuthSession(token: string, user: User): Promise<void> {
+  await Keychain.setGenericPassword(
+    'auth',
+    JSON.stringify({ token, user }),
+    { service: TOKEN_SERVICE },
+  );
+}
+
+export async function getAuthSession(): Promise<AuthSession | null> {
   const creds = await Keychain.getGenericPassword({ service: TOKEN_SERVICE });
+  if (!creds) {
+    return null;
+  }
+
+  let session: unknown;
+  try {
+    session = JSON.parse(creds.password);
+  } catch {
+    if (creds.password.trimStart().startsWith('{')) {
+      throw new Error('Stored authentication session is not valid JSON.');
+    }
+    return { token: creds.password };
+  }
+  if (!isAuthSession(session)) {
+    throw new Error('Stored authentication session is incomplete or invalid.');
+  }
+
+  return session;
+}
+
+export async function clearAuthSession(): Promise<void> {
+  await Keychain.resetGenericPassword({ service: TOKEN_SERVICE });
+}
+
+/** Keeps track of an account deactivated on this device until it is reactivated. */
+export async function markAccountDeactivated(userId: string): Promise<void> {
+  await Keychain.setGenericPassword('deactivated', userId, { service: DEACTIVATED_ACCOUNT_SERVICE });
+}
+
+export async function getDeactivatedAccountId(): Promise<string | null> {
+  const creds = await Keychain.getGenericPassword({ service: DEACTIVATED_ACCOUNT_SERVICE });
   return creds ? creds.password : null;
 }
 
-export async function clearToken(): Promise<void> {
-  await Keychain.resetGenericPassword({ service: TOKEN_SERVICE });
+export async function clearDeactivatedAccountMarker(): Promise<void> {
+  await Keychain.resetGenericPassword({ service: DEACTIVATED_ACCOUNT_SERVICE });
 }
 
 /*

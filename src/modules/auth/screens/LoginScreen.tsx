@@ -1,25 +1,41 @@
 import React from 'react';
-import { Alert, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageBackground,
+  StatusBar,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ILLUSTRATIONS } from '../../../assets/illustrations';
-import { Mail, User as UserIcon } from 'lucide-react-native';
-import { AppButton, AppInput, AppText, PasswordInput } from '../../../components/common';
+import { ChevronRight, LockKeyhole, Smartphone, UserPlus } from 'lucide-react-native';
+import { AppInput, AppText, PasswordInput } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
-import { BrandLogo, IllustrationSlot } from '../../../components/illustrations';
-import { APP_NAME } from '../../../constants/app';
+import { BrandLogo } from '../../../components/illustrations';
+import { APP_NAME, APP_TAGLINE } from '../../../constants/app';
 import { USER_ROLES } from '../../../constants/roles';
 import { ScreenLayout } from '../../../layout';
 import { AuthScreenProps } from '../../../navigation/types';
-import { saveToken } from '../../../services/secureStorage';
+import { User } from '../../../types/models';
+import {
+  clearDeactivatedAccountMarker,
+  getDeactivatedAccountId,
+  saveAuthSession,
+} from '../../../services/secureStorage';
+import { getFcmLoginFields } from '../../../services/firebase/messaging';
 import { clearSelectedRole, setCredentials } from '../../../store/slices/authSlice';
 import { useAppDispatch } from '../../../store/hooks';
-import { colors, gradients, radius, scale, sizes, spacing, vs } from '../../../theme';
-import { usePasswordLoginMutation } from '../api/authApi';
+import { colors, radius, scale, sizes, spacing, vs } from '../../../theme';
+import { usePasswordLoginMutation, useReactivateAccountMutation } from '../api/authApi';
 import { backendErrorMessage } from '../hooks/useBackendLogin';
 import { LoginForm, loginSchema, looksLikePhone } from '../schemas/auth.schema';
+
+const AUTH_BUTTON_GRADIENT = 'linear-gradient(105deg, #FFA500 0%, #FF0050 100%)';
 
 /**
  * Login
@@ -32,37 +48,123 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
   const dispatch = useAppDispatch();
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { height } = useWindowDimensions();
   const [passwordLogin, { isLoading }] = usePasswordLoginMutation();
+  const [reactivateAccount, { isLoading: isReactivating }] = useReactivateAccountMutation();
 
-  // responsive hero
-  const heroH = Math.min(height * 0.4, vs(340)) + insets.top;
-  const artSize = Math.min(width * 0.62, scale(300));
-  const cardOverlap = vs(32);
+  const cardTop = height * 0.46;
+  const cardBottom = Math.max(insets.bottom + vs(54), height * 0.075);
+  const [brandName, ...brandSuffix] = APP_NAME.split(' ');
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { identifier: '', password: '' },
   });
 
+  const completeLogin = async (token: string, user: User) => {
+    if (!token) {
+      Alert.alert('Login failed', 'The server did not return a session token.');
+      return;
+    }
+    if (__DEV__ && user.role === USER_ROLES.CANDIDATE) {
+      console.log('[Auth] Job seeker token:', token);
+    }
+    await saveAuthSession(token, user);
+    dispatch(setCredentials({ token, user }));
+  };
+
+  const isDeactivatedLoginError = (error: unknown) => {
+    const apiError = error as {
+      status?: number;
+      data?: unknown;
+    };
+    const detail = typeof apiError.data === 'string'
+      ? apiError.data
+      : JSON.stringify(apiError.data ?? '');
+    // Login endpoints commonly use 403/423 for a disabled account. Password
+    // failures remain 401, so they continue to show the normal login error.
+    return (
+      apiError.status === 403 ||
+      apiError.status === 423 ||
+      detail.toLowerCase().includes('deactivat') ||
+      detail.toLowerCase().includes('inactive')
+    );
+  };
+
+  const confirmReactivation = (token?: string, onReactivated?: () => Promise<void>) => {
+    Alert.alert(
+      'Reactivate account?',
+      'Do you want to reactivate your account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            try {
+              await reactivateAccount(token ? { token } : undefined).unwrap();
+              if (onReactivated) {
+                await onReactivated();
+              } else {
+                Alert.alert('Account reactivated', 'Your account is active. Please log in again.');
+              }
+            } catch (error) {
+              Alert.alert('Unable to reactivate account', backendErrorMessage(error));
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const onSubmit = handleSubmit(async values => {
     const id = values.identifier.trim();
-    const body = looksLikePhone(id)
+    const isPhoneLogin = looksLikePhone(id);
+    const body = isPhoneLogin
       ? { mobile: `+91${id}`, password: values.password }
       : { email: id, password: values.password };
+    const loginAccountMarker = isPhoneLogin
+      ? `phone:${id.replace(/\D/g, '').slice(-10)}`
+      : `email:${id.toLowerCase()}`;
     try {
+      const fcmFields = await getFcmLoginFields();
       // the response is printed to the terminal by the API layer (npm run logs)
-      const { token, user } = await passwordLogin(body).unwrap();
-      if (!token) {
-        Alert.alert('Login failed', 'The server did not return a session token.');
+      const { token, user, accountDeactivated } = await passwordLogin({ ...body, ...fcmFields }).unwrap();
+      const deactivatedAccountId = await getDeactivatedAccountId();
+      // Older app versions stored the backend's internal user ID. That ID is
+      // not always present in a subsequent login response, but its presence
+      // still means this device has a pending deactivated-account reactivation.
+      const hasLegacyDeactivationMarker = Boolean(
+        deactivatedAccountId &&
+        !deactivatedAccountId.startsWith('email:') &&
+        !deactivatedAccountId.startsWith('phone:'),
+      );
+      const needsReactivation =
+        accountDeactivated ||
+        deactivatedAccountId === loginAccountMarker ||
+        deactivatedAccountId === user.id ||
+        hasLegacyDeactivationMarker;
+      if (needsReactivation) {
+        confirmReactivation(token, async () => {
+          await clearDeactivatedAccountMarker();
+          if (token) await completeLogin(token, user);
+          else Alert.alert('Account reactivated', 'Your account is active. Please log in again.');
+        });
         return;
       }
-      if (__DEV__ && user.role === USER_ROLES.CANDIDATE) {
-        console.log('[Auth] Job seeker token:', token);
-      }
-      await saveToken(token);
-      dispatch(setCredentials({ token, user }));
+      await completeLogin(token, user);
     } catch (e) {
+      if (isDeactivatedLoginError(e)) {
+        const errorData = (e as {
+          data?: { token?: string; accessToken?: string; data?: { token?: string; accessToken?: string } };
+        }).data;
+        confirmReactivation(
+          errorData?.token ??
+          errorData?.accessToken ??
+          errorData?.data?.token ??
+          errorData?.data?.accessToken,
+        );
+        return;
+      }
       const status = (e as { status?: number })?.status;
       Alert.alert(
         'Login failed',
@@ -82,174 +184,236 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
     <ScreenLayout
       showHeader={false}
       padded={false}
-      edges={['bottom']}
-      mainBackground={colors.background}>
-      {isFocused ? <StatusBar barStyle="light-content" /> : null}
+      edges={[]}
+      mainBackground={colors.transparent}
+      rootStyle={styles.root}>
+      {isFocused ? (
+        <StatusBar barStyle="dark-content" />
+      ) : null}
 
-      {/* ---------- HERO ---------- */}
-      <View style={[styles.hero, { height: heroH, paddingTop: insets.top + vs(18) }]}>
-        <View style={[styles.bubble, styles.bubbleLarge]} />
-        <View style={[styles.bubble, styles.bubbleSmall]} />
-
-        <View style={styles.brandRow}>
-          <BrandLogo size={scale(40)} variant="onDark" />
-          <AppText variant="h3" color="textOnPrimary">
-            {APP_NAME}
-          </AppText>
-        </View>
-
-        {ILLUSTRATIONS.splash ? (
-          <View style={[styles.heroArt, { bottom: cardOverlap - vs(6) }]}>
-            <IllustrationSlot size={artSize} image={ILLUSTRATIONS.splash}>
-              {null}
-            </IllustrationSlot>
+      <ImageBackground
+        source={require('../../../assets/illustrations/login backimg.png')}
+        resizeMode="stretch"
+        style={[styles.background, { height }]}>
+        <View style={styles.page}>
+          <View style={[styles.brandRow, { top: insets.top + vs(26) }]}>
+            <BrandLogo size={scale(52)} />
+            <View style={styles.brandDivider} />
+            <View>
+              <AppText variant="h2" style={styles.brandTitle}>
+                {brandName}{' '}
+                <AppText variant="h2" style={styles.brandAccent}>
+                  {brandSuffix.join(' ')}
+                </AppText>
+              </AppText>
+              <AppText variant="caption" style={styles.tagline}>
+                {APP_TAGLINE}
+              </AppText>
+            </View>
           </View>
-        ) : null}
-      </View>
 
-      {/* ---------- CARD ---------- */}
-      <View style={[styles.card, { marginTop: -cardOverlap }]}>
-        <View style={styles.cardInner}>
-          <View style={styles.handle} />
+          <Image
+            source={require('../../../assets/illustrations/splash-duo.png')}
+            resizeMode="contain"
+            style={styles.heroArt}
+            accessibilityLabel="YYJCPL Jobs candidates"
+          />
 
-          <AppText variant="h3" style={styles.heading}>
-            Login with your{' '}
-            <AppText variant="h3" color="primary">
-              mobile
-            </AppText>{' '}
-            or{' '}
-            <AppText variant="h3" color="primary">
-              email
-            </AppText>{' '}
-            to continue
-          </AppText>
+          <View style={[styles.card, { top: cardTop, bottom: cardBottom }]}>
+            <View style={styles.cardInner}>
+              <AppText variant="h3" align="center" style={styles.heading}>
+                Login with your{' '}
+                <AppText variant="h3" style={styles.headingAccent}>
+                  mobile
+                </AppText>{' '}
+                or{' '}
+                <AppText variant="h3" style={styles.headingAccent}>
+                  email
+                </AppText>{' '}
+                to continue
+              </AppText>
 
-          <Controller
-            control={control}
-            name="identifier"
-            render={({ field: { value, onChange, onBlur }, fieldState }) => (
-              <AppInput
-                label="Mobile Number or Email"
-                placeholder="Enter mobile number or email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="email"
-                maxLength={looksLikePhone(value) ? 10 : 100}
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={fieldState.error?.message}
-                leftElement={
-                  looksLikePhone(value) ? (
-                    <View style={styles.codeChip}>
-                      <AppText variant="bodyBold" color="primary">
-                        +91
-                      </AppText>
+              <Controller
+                control={control}
+                name="identifier"
+                render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                  <View style={styles.inputRow}>
+                    <View style={styles.iconBadge}>
+                      <Smartphone size={sizes.iconMd} color={colors.primary} />
                     </View>
-                  ) : value ? (
-                    <Mail size={sizes.iconSm} color={colors.textMuted} />
-                  ) : (
-                    <UserIcon size={sizes.iconSm} color={colors.textMuted} />
-                  )
-                }
+                    <View style={styles.inputColumn}>
+                      <AppInput
+                        label="Mobile Number or Email"
+                        placeholder="Enter mobile number or email"
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="email"
+                        maxLength={looksLikePhone(value) ? 10 : 100}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        error={fieldState.error?.message}
+                        wrapperStyle={styles.inputWrapper}
+                        fieldStyle={styles.inputField}
+                        style={styles.inputText}
+                      />
+                    </View>
+                  </View>
+                )}
               />
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { value, onChange, onBlur }, fieldState }) => (
-              <PasswordInput
-                label="Password"
-                placeholder="Enter your password"
-                textContentType="password"
-                autoComplete="password"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={fieldState.error?.message}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { value, onChange, onBlur }, fieldState }) => (
+                  <View style={styles.inputRow}>
+                    <View style={styles.iconBadge}>
+                      <LockKeyhole size={sizes.iconMd} color={colors.primary} />
+                    </View>
+                    <View style={styles.inputColumn}>
+                      <PasswordInput
+                        label="Password"
+                        placeholder="Enter your password"
+                        textContentType="password"
+                        autoComplete="password"
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        error={fieldState.error?.message}
+                        leftElement={null}
+                        wrapperStyle={styles.inputWrapper}
+                        fieldStyle={styles.inputField}
+                        style={styles.inputText}
+                      />
+                    </View>
+                  </View>
+                )}
               />
-            )}
-          />
-          <Pressable
-            onPress={() => navigation.navigate('ForgotPassword')}
-            hitSlop={scale(8)}
-            style={styles.forgot}>
-            <AppText variant="bodyBold" color="primary">
-              Forgot Password?
-            </AppText>
-          </Pressable>
 
-          <AppButton title="Login" onPress={onSubmit} loading={isLoading} style={styles.cta} />
+              <Pressable
+                onPress={() => navigation.navigate('ForgotPassword')}
+                hitSlop={scale(8)}
+                accessibilityRole="button"
+                style={styles.forgot}>
+                <AppText variant="bodyBold" style={styles.headingAccent}>
+                  Forgot Password?
+                </AppText>
+              </Pressable>
 
-          <View style={styles.dividerRow}>
-            <View style={styles.line} />
-            <AppText variant="caption" color="textMuted">
-              New to YYJCPL?
-            </AppText>
-            <View style={styles.line} />
+              <Pressable
+                onPress={() => onSubmit()}
+                disabled={isLoading || isReactivating}
+                accessibilityRole="button"
+                accessibilityLabel="Login"
+                style={({ pressed }) => [
+                  styles.cta,
+                  pressed && styles.ctaPressed,
+                  (isLoading || isReactivating) && styles.disabled,
+                ]}>
+                {isLoading || isReactivating ? (
+                  <ActivityIndicator color={colors.textOnPrimary} />
+                ) : (
+                  <>
+                    <AppText variant="button" color="textOnPrimary" style={styles.ctaText}>
+                      Login
+                    </AppText>
+                    <View style={styles.arrowCircle}>
+                      <ChevronRight size={sizes.iconMd} color={colors.danger} strokeWidth={3} />
+                    </View>
+                  </>
+                )}
+              </Pressable>
+
+              <View style={styles.dividerRow}>
+                <View style={styles.line} />
+                <AppText variant="caption" style={styles.newAccountText}>
+                  New to YYJCPL?
+                </AppText>
+                <View style={styles.line} />
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                onPress={onCreateAccount}
+                style={({ pressed }) => [
+                  styles.createAccount,
+                  pressed && styles.createAccountPressed,
+                ]}>
+                {({ pressed }) => (
+                  <>
+                    <UserPlus
+                      size={sizes.iconMd}
+                      color={pressed ? colors.textOnPrimary : colors.primary}
+                    />
+                    <AppText
+                      variant="button"
+                      color={pressed ? 'textOnPrimary' : 'primary'}
+                      style={styles.createAccountText}>
+                      Create an account
+                    </AppText>
+                  </>
+                )}
+              </Pressable>
+            </View>
           </View>
 
-          <AppButton
-            title="Create an account"
-            variant="outline"
-            onPress={onCreateAccount}
-          />
-
-          <View style={styles.spacer} />
-
-          <AppText variant="caption" color="textMuted" align="center" style={styles.terms}>
+          <AppText
+            variant="caption"
+            color="textOnPrimary"
+            align="center"
+            style={[styles.terms, { bottom: Math.max(insets.bottom + vs(4), vs(10)) }]}>
             By continuing, you agree to our{' '}
-            <AppText variant="caption" color="primary">
+            <AppText variant="caption" color="textOnPrimary" style={styles.termsLink}>
               Terms of Service
             </AppText>{' '}
             and{' '}
-            <AppText variant="caption" color="primary">
+            <AppText variant="caption" color="textOnPrimary" style={styles.termsLink}>
               Privacy Policy
             </AppText>
           </AppText>
         </View>
-      </View>
+      </ImageBackground>
     </ScreenLayout>
   );
 }
 
-const BUBBLE_L = scale(220);
-const BUBBLE_S = scale(110);
-
 const styles = StyleSheet.create({
-  hero: {
+  root: { backgroundColor: colors.transparent },
+  background: { width: '100%' },
+  page: { flex: 1, position: 'relative' },
+  brandRow: {
+    position: 'absolute',
+    left: spacing.xl,
+    right: spacing.xl,
+    zIndex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    overflow: 'hidden',
-    backgroundColor: colors.primary,
-    backgroundImage: gradients.primary,
+    justifyContent: 'center',
+    gap: spacing.md,
   },
-  bubble: { position: 'absolute', backgroundColor: 'rgba(255,255,255,0.12)' },
-  bubbleLarge: {
-    width: BUBBLE_L,
-    height: BUBBLE_L,
-    borderRadius: BUBBLE_L / 2,
-    top: -BUBBLE_L * 0.35,
-    right: -BUBBLE_L * 0.3,
+  brandDivider: { width: scale(1.5), height: scale(54), backgroundColor: '#24336F' },
+  brandTitle: { color: '#1554B5', fontWeight: '800' },
+  brandAccent: { color: '#FF6500', fontWeight: '800' },
+  tagline: { color: '#1C2C65', fontStyle: 'italic', fontWeight: '600', marginTop: vs(2) },
+  heroArt: {
+    position: 'absolute',
+    top: '13%',
+    width: '96%',
+    height: '36%',
+    alignSelf: 'center',
   },
-  bubbleSmall: {
-    width: BUBBLE_S,
-    height: BUBBLE_S,
-    borderRadius: BUBBLE_S / 2,
-    bottom: vs(60),
-    left: -BUBBLE_S * 0.4,
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  heroArt: { position: 'absolute', alignSelf: 'center' },
-
   card: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderTopLeftRadius: scale(28),
-    borderTopRightRadius: scale(28),
-    boxShadow: `0px -${scale(6)}px ${scale(18)}px rgba(120, 45, 0, 0.12)`,
+    position: 'absolute',
+    left: scale(12),
+    right: scale(12),
+    zIndex: 2,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderTopLeftRadius: scale(34),
+    borderTopRightRadius: scale(34),
+    borderBottomLeftRadius: scale(48),
+    borderBottomRightRadius: scale(48),
+    boxShadow: `0px -${scale(5)}px ${scale(18)}px rgba(91, 77, 158, 0.16)`,
   },
   cardInner: {
     flex: 1,
@@ -257,33 +421,107 @@ const styles = StyleSheet.create({
     maxWidth: scale(480),
     alignSelf: 'center',
     paddingHorizontal: spacing.xl,
-    paddingTop: vs(12),
-    paddingBottom: vs(16),
+    paddingTop: vs(14),
+    paddingBottom: vs(8),
   },
-  handle: {
-    alignSelf: 'center',
+  heading: {
+    color: '#192459',
+    fontSize: scale(16),
+    lineHeight: vs(20),
+    marginBottom: vs(10),
+    fontWeight: '700',
+  },
+  headingAccent: {
+    color: '#F66A00',
+    fontSize: scale(16),
+    lineHeight: vs(20),
+    fontWeight: '700',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: vs(4),
+  },
+  iconBadge: {
     width: scale(40),
-    height: vs(4),
+    height: scale(40),
     borderRadius: radius.pill,
-    backgroundColor: colors.border,
-    marginBottom: vs(20),
+    backgroundColor: 'rgba(255,111,0,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heading: { marginBottom: vs(24) },
-  codeChip: {
+  inputColumn: { flex: 1 },
+  inputWrapper: { marginBottom: 0 },
+  inputField: {
+    height: vs(42),
+    borderRadius: radius.pill,
+    borderColor: '#E1DFEA',
+    backgroundColor: 'rgba(247,246,251,0.9)',
     paddingHorizontal: spacing.sm,
-    paddingVertical: vs(4),
-    borderRadius: radius.sm,
-    backgroundColor: colors.primaryLight,
   },
-  forgot: { alignSelf: 'flex-end', marginTop: -vs(6), marginBottom: vs(16) },
-  cta: { marginTop: vs(4) },
+  inputText: { fontSize: scale(14) },
+  forgot: { alignSelf: 'flex-end', marginTop: -vs(2), marginBottom: vs(7) },
+  cta: {
+    width: '92%',
+    alignSelf: 'center',
+    height: vs(46),
+    borderRadius: radius.pill,
+    backgroundImage: AUTH_BUTTON_GRADIENT,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.9)',
+    boxShadow: `0px ${scale(6)}px ${scale(14)}px rgba(255, 91, 0, 0.3)`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  ctaPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
+  disabled: { opacity: 0.7 },
+  ctaText: { fontWeight: '700', fontSize: scale(18) },
+  arrowCircle: {
+    position: 'absolute',
+    right: spacing.md,
+    width: scale(30),
+    height: scale(30),
+    borderRadius: radius.pill,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginVertical: vs(20),
+    gap: spacing.sm,
+    marginVertical: vs(8),
   },
-  line: { flex: 1, height: 1, backgroundColor: colors.border },
-  spacer: { flex: 1, minHeight: vs(16) },
-  terms: { paddingHorizontal: spacing.lg },
+  line: { flex: 1, height: 1, backgroundColor: '#D9D7E2' },
+  newAccountText: { color: '#68677A', fontSize: scale(14) },
+  createAccount: {
+    width: '92%',
+    alignSelf: 'center',
+    height: vs(40),
+    borderWidth: 1.5,
+    borderColor: '#FF6A00',
+    borderRadius: scale(16),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  createAccountPressed: {
+    backgroundImage: AUTH_BUTTON_GRADIENT,
+    borderColor: 'rgba(255,255,255,0.9)',
+  },
+  createAccountText: { color: '#F65F00', fontWeight: '700', fontSize: scale(15) },
+  terms: {
+    position: 'absolute',
+    left: spacing.lg,
+    right: spacing.lg,
+    zIndex: 3,
+    fontSize: scale(10),
+    textShadowColor: 'rgba(115, 47, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  termsLink: { textDecorationLine: 'underline' },
 });

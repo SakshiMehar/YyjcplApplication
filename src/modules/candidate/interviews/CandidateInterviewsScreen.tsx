@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ImageBackground,
   RefreshControl,
   StyleSheet,
   View,
@@ -161,7 +162,17 @@ export default function CandidateInterviewsScreen() {
   );
 
   return (
-    <ScreenLayout title="Interviews" showBack={false} edges={['top']} scroll={false} padded={false}>
+    <ScreenLayout
+      title="Interviews"
+      showBack={false}
+      edges={['top']}
+      scroll={false}
+      padded={false}
+      mainBackground="transparent">
+      <ImageBackground
+        source={require('../../../assets/illustrations/interview screen.png')}
+        resizeMode="cover"
+        style={styles.background}>
       {isLoading ? (
         <View style={styles.state}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -213,11 +224,13 @@ export default function CandidateInterviewsScreen() {
           renderItem={({ item }) => <InterviewCard item={item} />}
         />
       )}
+      </ImageBackground>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
+  background: { flex: 1 },
   list: { padding: spacing.lg, paddingBottom: vs(24) },
   emptyList: { flexGrow: 1 },
   listHeader: { marginBottom: spacing.md },

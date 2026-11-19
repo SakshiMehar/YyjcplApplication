@@ -98,10 +98,11 @@ function StatCard({ value, label, icon }: { value: string | number; label: strin
 }
 
 /* ─── Featured job card ──────────────────────────────────────────────────── */
-function FeaturedJobCard({ job, onApply, isApplying, onPress }: {
+function FeaturedJobCard({ job, onApply, isApplying, isApplied, onPress }: {
   job: JobSeekerJob;
   onApply: () => void;
   isApplying: boolean;
+  isApplied: boolean;
   onPress: () => void;
 }) {
   const initials = (job.companyName ?? '')
@@ -161,11 +162,18 @@ function FeaturedJobCard({ job, onApply, isApplying, onPress }: {
           <AppText variant="caption" style={styles.easyApplyText}>Easy Apply</AppText>
         </View>
         <Pressable
-          onPress={onApply}
-          disabled={isApplying}
-          style={[styles.applyNowBtn, isApplying && styles.applyNowBtnDisabled]}>
+          onPress={event => {
+            event.stopPropagation();
+            onApply();
+          }}
+          disabled={isApplying || isApplied}
+          style={[
+            styles.applyNowBtn,
+            isApplying && styles.applyNowBtnDisabled,
+            isApplied && styles.applyNowBtnApplied,
+          ]}>
           <AppText variant="caption" style={styles.applyNowText}>
-            {isApplying ? 'Applying…' : 'Apply Now →'}
+            {isApplying ? 'Applying…' : isApplied ? 'Applied' : 'Apply Now →'}
           </AppText>
         </Pressable>
       </View>
@@ -174,11 +182,12 @@ function FeaturedJobCard({ job, onApply, isApplying, onPress }: {
 }
 
 /* ─── Regular job card ───────────────────────────────────────────────────── */
-function JobCard({ job, onPress, onApply, isApplying, onSave, isSaving, saved }: {
+function JobCard({ job, onPress, onApply, isApplying, isApplied, onSave, isSaving, saved }: {
   job: JobSeekerJob;
   onPress: () => void;
   onApply: () => void;
   isApplying: boolean;
+  isApplied: boolean;
   onSave: () => void;
   isSaving: boolean;
   saved: boolean;
@@ -290,11 +299,18 @@ function JobCard({ job, onPress, onApply, isApplying, onSave, isSaving, saved }:
           )}
         </Pressable>
         <Pressable
-          onPress={onApply}
-          disabled={isApplying}
-          style={[styles.applyBtn, isApplying && styles.applyBtnDisabled]}>
+          onPress={event => {
+            event.stopPropagation();
+            onApply();
+          }}
+          disabled={isApplying || isApplied}
+          style={[
+            styles.applyBtn,
+            isApplying && styles.applyBtnDisabled,
+            isApplied && styles.applyBtnApplied,
+          ]}>
           <AppText variant="caption" style={styles.applyBtnText}>
-            {isApplying ? 'Applying…' : 'Apply Now →'}
+            {isApplying ? 'Applying…' : isApplied ? 'Applied' : 'Apply Now →'}
           </AppText>
         </Pressable>
       </View>
@@ -310,6 +326,7 @@ export default function JobSearchScreen() {
   const [searchText, setSearchText] = useState('');
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(() => new Set());
 
@@ -317,7 +334,7 @@ export default function JobSearchScreen() {
   const [applyToJob] = useApplyToJobMutation();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => !n.read);
 
   // Greeting based on time
   const hour = new Date().getHours();
@@ -347,13 +364,18 @@ export default function JobSearchScreen() {
   const listJobs = filtered.slice(1);
 
   const handleApply = async (job: JobSeekerJob) => {
+    if (appliedJobIds.has(job.id)) return;
     setApplyingId(job.id);
     try {
       await applyToJob({ jobId: job.id }).unwrap();
+      setAppliedJobIds(current => new Set(current).add(job.id));
     } catch (e) {
-      const err = e as { status?: number };
-      if (err?.status !== 409) {
-        Alert.alert('Could not apply', 'Please try again.');
+      const err = e as { status?: number; data?: { message?: string } };
+      if (err?.status === 409) {
+        // The backend confirms this job has already been applied for.
+        setAppliedJobIds(current => new Set(current).add(job.id));
+      } else {
+        Alert.alert('Unable to apply', err?.data?.message ?? 'Please try again.');
       }
     } finally {
       setApplyingId(null);
@@ -475,6 +497,7 @@ export default function JobSearchScreen() {
                 onPress={() => navigation.navigate('JobDetails', { job: featuredJob })}
                 onApply={() => handleApply(featuredJob)}
                 isApplying={applyingId === featuredJob.id}
+                isApplied={appliedJobIds.has(featuredJob.id)}
               />
             ) : null}
 
@@ -510,6 +533,7 @@ export default function JobSearchScreen() {
               onPress={() => navigation.navigate('JobDetails', { job: item })}
               onApply={() => handleApply(item)}
               isApplying={applyingId === item.id}
+              isApplied={appliedJobIds.has(item.id)}
               onSave={() => handleSave(item)}
               isSaving={savingId === item.id}
               saved={savedJobIds.has(item.id) || Boolean(item.isSaved)}
@@ -677,6 +701,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyNowBtnDisabled: { opacity: 0.6 },
+  applyNowBtnApplied: { backgroundColor: '#7C3AED', opacity: 1 },
   applyNowText: { color: colors.textOnPrimary, fontWeight: '700' },
 
   /* Section header */
@@ -732,6 +757,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: vs(7),
   },
   applyBtnDisabled: { opacity: 0.6 },
+  applyBtnApplied: { backgroundColor: '#7C3AED', opacity: 1 },
   applyBtnText: { color: colors.textOnPrimary, fontWeight: '700', fontSize: font(12) },
 
   /* Misc */

@@ -33,9 +33,12 @@ import { colors, font, MAX_FONT_MULTIPLIER, radius, scale, spacing, vs } from '.
 import {
   useApplyToJobMutation,
   JobSeekerJob,
-  useGetJobSeekerJobsQuery,
+  useGetRecommendedJobsQuery,
+  useGetJobSeekerProfileQuery,
+  useLazySearchJobSeekerJobsQuery,
   useSaveJobMutation,
 } from '../api/candidateApi';
+import { getProfilePictureHeaders, resolveBackendUrl } from '../utils/resume';
 import { useGetNotificationsQuery } from '../../shared/api/sharedApi';
 import { firstName } from '../../../utils/format';
 import CandidateMoreMenu, { MoreMenuAction } from './components/CandidateMoreMenu';
@@ -67,6 +70,7 @@ function HomeJobCard({
   onApply,
   onSave,
   isApplying,
+  isApplied,
   isSaving,
   saved,
 }: {
@@ -75,6 +79,7 @@ function HomeJobCard({
   onApply: () => void;
   onSave: () => void;
   isApplying: boolean;
+  isApplied: boolean;
   isSaving: boolean;
   saved: boolean;
 }) {
@@ -204,12 +209,15 @@ function HomeJobCard({
         </Pressable>
 
         <Pressable
-          onPress={onApply}
-          disabled={isApplying}
-          style={[styles.applyBtn, isApplying && styles.applyBtnDisabled]}
+          onPress={event => {
+            event.stopPropagation();
+            onApply();
+          }}
+          disabled={isApplying || isApplied}
+          style={[styles.applyBtn, isApplying && styles.applyBtnDisabled, isApplied && styles.applyBtnApplied]}
           accessibilityLabel={`Apply to ${job.role}`}>
           <AppText variant="caption" style={styles.applyBtnText}>
-            {isApplying ? 'Applying…' : 'Apply Now →'}
+            {isApplying ? 'Applying…' : isApplied ? 'Applied' : 'Apply Now →'}
           </AppText>
         </Pressable>
       </View>
@@ -221,34 +229,64 @@ function HomeJobCard({
 export default function CandidateHomeScreen() {
   const navigation = useNavigation<Nav>();
   const user = useAppSelector(s => s.auth.user);
+  const token = useAppSelector(s => s.auth.token);
   const insets = useSafeAreaInsets();
   const [isMoreMenuVisible, setMoreMenuVisible] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(() => new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(() => new Set());
   const [searchText, setSearchText] = useState('');
+  const [submittedKeyword, setSubmittedKeyword] = useState('');
 
-  const jobsQuery = useGetJobSeekerJobsQuery();
+  const jobsQuery = useGetRecommendedJobsQuery();
+  const [searchJobs, searchQuery] = useLazySearchJobSeekerJobsQuery();
+  const { data: profile } = useGetJobSeekerProfileQuery();
   const [applyToJob] = useApplyToJobMutation();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => !n.read);
 
   const openTab = (screen: keyof CandidateTabParamList) =>
     navigation.navigate('CandidateTabs', { screen });
 
   const first = firstName(user?.name);
+  const profilePictureUrl = profile?.profilePictureUrl
+    ? resolveBackendUrl(profile.profilePictureUrl)
+    : undefined;
+  const profilePictureHeaders = getProfilePictureHeaders(profile?.profilePictureUrl, token);
+  const avatarUrl = profilePictureUrl ?? user?.avatarUrl;
 
   const jobs = jobsQuery.data ?? [];
+  const displayedJobs = submittedKeyword ? (searchQuery.data ?? []) : jobs;
+
+  const handleJobSearch = async () => {
+    const keyword = searchText.trim();
+    if (!keyword) {
+      setSubmittedKeyword('');
+      return;
+    }
+
+    setSubmittedKeyword(keyword);
+    try {
+      await searchJobs({ keyword }).unwrap();
+    } catch (error) {
+      const apiError = error as { data?: { message?: string } };
+      Alert.alert('Could not search jobs', apiError.data?.message ?? 'Please try again.');
+    }
+  };
 
   const handleApply = async (job: JobSeekerJob) => {
+    if (appliedJobIds.has(job.id)) return;
     setApplyingId(job.id);
     try {
       await applyToJob({ jobId: job.id }).unwrap();
+      setAppliedJobIds(current => new Set(current).add(job.id));
       Alert.alert('Applied! 🎉', `Successfully applied for ${job.role} at ${job.companyName}.`);
     } catch (e) {
       const err = e as { status?: number; data?: { message?: string } };
       if (err?.status === 409) {
+        setAppliedJobIds(current => new Set(current).add(job.id));
         Alert.alert('Already Applied', 'You have already applied for this job.');
       } else {
         Alert.alert('Could not apply', err?.data?.message ?? 'Please try again.');
@@ -313,7 +351,12 @@ export default function CandidateHomeScreen() {
             style={styles.headerLeft}
             accessibilityLabel="My profile">
             <View style={styles.avatarWrap}>
-              <UserAvatar name={user?.name} uri={user?.avatarUrl} size={scale(46)} />
+              <UserAvatar
+                name={user?.name}
+                uri={avatarUrl}
+                headers={profilePictureHeaders}
+                size={scale(46)}
+              />
               <View style={styles.onlineDot} />
             </View>
             <View style={styles.greetingWrap}>
@@ -351,7 +394,7 @@ export default function CandidateHomeScreen() {
               maxFontSizeMultiplier={MAX_FONT_MULTIPLIER}
               selectionColor={colors.primary}
               returnKeyType="search"
-              onSubmitEditing={() => openTab('JobSearch')}
+              onSubmitEditing={handleJobSearch}
             />
           </View>
           <Pressable
@@ -409,25 +452,31 @@ export default function CandidateHomeScreen() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <View style={styles.sectionAccent} />
-            <AppText variant="h3">Recommended Jobs</AppText>
+            <AppText variant="h3">
+              {submittedKeyword ? `Search results for “${submittedKeyword}”` : 'Recommended Jobs'}
+            </AppText>
           </View>
           <Pressable onPress={() => openTab('JobSearch')} accessibilityLabel="See all jobs">
             <AppText variant="caption" style={styles.seeAll}>See all →</AppText>
           </Pressable>
         </View>
 
-        {jobsQuery.isLoading ? (
+        {jobsQuery.isLoading || searchQuery.isFetching ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
-        ) : jobs.length === 0 ? (
+        ) : displayedJobs.length === 0 ? (
           <View style={styles.emptyWrap}>
             <AppText variant="body" color="textMuted" style={styles.emptyText}>
-              {jobsQuery.isError
-                ? 'Could not load jobs. Pull to retry.'
-                : 'Complete your profile to get job recommendations.'}
+              {submittedKeyword
+                ? searchQuery.isError
+                  ? 'Could not search jobs. Please try again.'
+                  : 'No jobs found for this search.'
+                : jobsQuery.isError
+                  ? 'Could not load jobs. Pull to retry.'
+                  : 'Complete your profile to get job recommendations.'}
             </AppText>
           </View>
         ) : (
-          jobs.slice(0, 5).map(job => (
+          displayedJobs.slice(0, 5).map(job => (
             <HomeJobCard
               key={job.id}
               job={job}
@@ -435,6 +484,7 @@ export default function CandidateHomeScreen() {
               onApply={() => handleApply(job)}
               onSave={() => handleSave(job)}
               isApplying={applyingId === job.id}
+              isApplied={appliedJobIds.has(job.id)}
               isSaving={savingId === job.id}
               saved={savedJobIds.has(job.id) || Boolean(job.isSaved)}
             />
@@ -445,7 +495,8 @@ export default function CandidateHomeScreen() {
       <CandidateMoreMenu
         visible={isMoreMenuVisible}
         name={user?.name}
-        avatarUrl={user?.avatarUrl}
+        avatarUrl={avatarUrl}
+        avatarHeaders={profilePictureHeaders}
         onClose={() => setMoreMenuVisible(false)}
         onSelect={handleMoreMenu}
       />
@@ -759,6 +810,7 @@ const styles = StyleSheet.create({
     paddingVertical: vs(7),
   },
   applyBtnDisabled: { opacity: 0.6 },
+  applyBtnApplied: { backgroundColor: '#7C3AED', opacity: 1 },
   applyBtnText: {
     color: colors.textOnPrimary,
     fontWeight: '700',

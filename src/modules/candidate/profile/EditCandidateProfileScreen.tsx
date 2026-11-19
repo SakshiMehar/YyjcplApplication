@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -11,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Award,
   BriefcaseBusiness,
+  Camera,
   CalendarCheck,
   ChevronLeft,
   FileText,
@@ -28,16 +30,24 @@ import {
   Wrench,
 } from 'lucide-react-native';
 import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
+import type { DocumentPickerResponse } from '@react-native-documents/picker';
 import { AppButton, AppInput, AppText } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { CandidateScreenProps } from '../../../navigation/types';
+import { useAppSelector } from '../../../store/hooks';
 import { colors, font, MAX_FONT_MULTIPLIER, radius, scale, sizes, spacing, vs } from '../../../theme';
 import {
+  extractProfilePictureUrl,
   useGetJobSeekerProfileQuery,
   useUpdateJobSeekerProfileMutation,
+  useUploadJobSeekerProfilePictureMutation,
   useUploadResumeMutation,
 } from '../api/candidateApi';
-import { resolveResumeUrl } from '../utils/resume';
+import {
+  getProfilePictureHeaders,
+  resolveBackendUrl,
+  resolveResumeUrl,
+} from '../utils/resume';
 
 /* ─── Form type ──────────────────────────────────────────────────────────── */
 type ProfileForm = {
@@ -100,15 +110,36 @@ function apiErrorMessage(error: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
+function getImageMimeType(file: DocumentPickerResponse): string | undefined {
+  if (file.type?.startsWith('image/')) return file.type;
+
+  const extension = file.name?.split('.').pop()?.toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+  return extension ? mimeTypes[extension] : undefined;
+}
+
 /* ─── Main Screen ────────────────────────────────────────────────────────── */
 export default function EditCandidateProfileScreen({
   navigation,
 }: CandidateScreenProps<'EditCandidateProfile'>) {
   const insets = useSafeAreaInsets();
+  const token = useAppSelector(state => state.auth.token);
 
-  const { data: existing } = useGetJobSeekerProfileQuery();
+  const { data: existing, refetch: refetchProfile } = useGetJobSeekerProfileQuery();
   const [updateProfile, { isLoading }] = useUpdateJobSeekerProfileMutation();
   const [uploadResume, { isLoading: isUploading }] = useUploadResumeMutation();
+  const [uploadProfilePicture, { isLoading: isUploadingProfilePicture }] =
+    useUploadJobSeekerProfilePictureMutation();
+  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+  const [selectedProfilePicture, setSelectedProfilePicture] =
+    useState<DocumentPickerResponse | null>(null);
 
   // Tracks the file picked & uploaded this session
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
@@ -135,6 +166,59 @@ export default function EditCandidateProfileScreen({
     } catch (e) {
       if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) return;
       Alert.alert('Upload failed', 'Could not upload resume. Please try again.');
+    }
+  };
+
+  const handlePickProfilePicture = async () => {
+    try {
+      const [file] = await pick({ type: [types.images] });
+      if (!file.hasRequestedType || !getImageMimeType(file)) {
+        Alert.alert('Invalid image', 'Please select a valid image file.');
+        return;
+      }
+      setSelectedProfilePicture(file);
+    } catch (error) {
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) return;
+      Alert.alert('Could not select image', apiErrorMessage(error));
+    }
+  };
+
+  const handleSaveProfilePicture = async () => {
+    if (!selectedProfilePicture) {
+      Alert.alert('Select an image', 'Choose a profile picture before saving.');
+      return;
+    }
+
+    const mimeType = getImageMimeType(selectedProfilePicture);
+    if (!mimeType) {
+      Alert.alert('Invalid image', 'The selected file is not a supported image.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: selectedProfilePicture.uri,
+      name: selectedProfilePicture.name ?? 'profile-picture',
+      type: mimeType,
+    } as unknown as Blob);
+
+    try {
+      const uploadResult = await uploadProfilePicture(formData).unwrap();
+      const uploadedUrl = extractProfilePictureUrl(uploadResult);
+      const savedUrl =
+        uploadedUrl ?? (await refetchProfile().unwrap()).profilePictureUrl;
+      if (!savedUrl) {
+        Alert.alert(
+          'Upload failed',
+          'The image was uploaded, but no profile picture URL was returned. Please try again.',
+        );
+        return;
+      }
+      setProfilePictureUrl(resolveBackendUrl(savedUrl));
+      setSelectedProfilePicture(null);
+      Alert.alert('Profile picture updated', 'Your profile picture has been saved.');
+    } catch (error) {
+      Alert.alert('Upload failed', apiErrorMessage(error));
     }
   };
 
@@ -168,6 +252,7 @@ export default function EditCandidateProfileScreen({
   // Pre-fill form once existing data arrives
   useEffect(() => {
     if (existing) {
+      setProfilePictureUrl(existing.profilePictureUrl ?? '');
       reset({
         headline: existing.headline ?? '',
         professionalSummary: existing.professionalSummary ?? '',
@@ -252,6 +337,48 @@ export default function EditCandidateProfileScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}>
+
+        {/* ── Profile Picture ── */}
+        <SectionLabel label="Profile Picture" />
+        <View style={styles.profilePictureCard}>
+          <View style={styles.profilePicturePreview}>
+            {selectedProfilePicture || profilePictureUrl ? (
+              <Image
+                source={{
+                  uri: selectedProfilePicture?.uri ?? profilePictureUrl,
+                  headers: selectedProfilePicture
+                    ? undefined
+                    : getProfilePictureHeaders(profilePictureUrl, token),
+                }}
+                style={styles.profilePictureImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <UserRound size={scale(34)} color={colors.primary} />
+            )}
+          </View>
+          <View style={styles.profilePictureActions}>
+            <AppText variant="caption" color="textSecondary">
+              Choose a photo and save it to your profile.
+            </AppText>
+            <Pressable
+              onPress={handlePickProfilePicture}
+              disabled={isUploadingProfilePicture}
+              style={styles.choosePictureButton}
+              accessibilityRole="button">
+              <Camera size={scale(16)} color={colors.primary} />
+              <AppText variant="bodyBold" color="primary">
+                {selectedProfilePicture ? 'Choose another photo' : 'Choose photo'}
+              </AppText>
+            </Pressable>
+            <AppButton
+              title="Save profile picture"
+              onPress={handleSaveProfilePicture}
+              loading={isUploadingProfilePicture}
+              disabled={!selectedProfilePicture}
+            />
+          </View>
+        </View>
 
         {/* ── Professional Identity ── */}
         <SectionLabel label="Professional Identity" />
@@ -708,6 +835,34 @@ const styles = StyleSheet.create({
   sectionLabelText: {
     fontWeight: '700',
     letterSpacing: 0.8,
+  },
+  profilePictureCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: vs(20),
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  profilePicturePreview: {
+    width: scale(88),
+    height: scale(88),
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  profilePictureImage: { width: '100%', height: '100%' },
+  profilePictureActions: { flex: 1, gap: vs(8) },
+  choosePictureButton: {
+    minHeight: vs(38),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
 
   /* Multiline textarea (Professional Summary) */

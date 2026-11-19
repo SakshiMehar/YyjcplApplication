@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { AppText, Card } from '../../../components/common';
 import { ScreenLayout } from '../../../layout';
 
@@ -8,7 +9,12 @@ import { ScreenLayout } from '../../../layout';
  */
 export default function CandidateSearchScreen() {
   return (
-    <ScreenLayout title="Search Candidates" showBack={false} edges={['top']}>
+    <ScreenLayout
+      title="Search Candidates"
+      showBack={false}
+      edges={['top']}
+      rootStyle={styles.transparentRoot}
+      mainBackground="transparent">
       <Card>
         <AppText variant="h3">Search Candidates</AppText>
         <AppText color="textSecondary">Search candidate database by skills, location and experience.</AppText>
@@ -16,3 +22,7 @@ export default function CandidateSearchScreen() {
     </ScreenLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  transparentRoot: { backgroundColor: 'transparent' },
+});

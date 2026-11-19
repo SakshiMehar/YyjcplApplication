@@ -1,7 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { candidateApi } from '../src/modules/candidate/api/candidateApi';
+import {
+  candidateApi,
+  extractProfilePictureUrl,
+} from '../src/modules/candidate/api/candidateApi';
+import { getProfilePictureHeaders } from '../src/modules/candidate/utils/resume';
+import { ENV } from '../src/config/env';
 import { baseApi } from '../src/store/api/baseApi';
-import authReducer from '../src/store/slices/authSlice';
+import authReducer, { setCredentials } from '../src/store/slices/authSlice';
 
 const makeStore = () =>
   configureStore({
@@ -16,6 +21,71 @@ const mockFetch = (body: unknown) =>
       headers: { 'Content-Type': 'application/json' },
     }),
   );
+
+describe('profile picture URL resolution', () => {
+  test('uses the profile-pictures GET route with the returned file name', () => {
+    const url = extractProfilePictureUrl({ profilePictureUrl: '/uploads/my profile.jpg' });
+
+    expect(new URL(url!).pathname).toMatch(/\/api\/profile-pictures\/my%20profile\.jpg$/);
+  });
+
+  test('resolves a profile picture object that returns only its file name', () => {
+    const url = extractProfilePictureUrl({
+      profilePicture: { fileName: 'profile.jpg' },
+    });
+
+    expect(new URL(url!).pathname).toMatch(/\/api\/profile-pictures\/profile\.jpg$/);
+  });
+
+  test('keeps externally hosted profile picture URLs unchanged', () => {
+    const url = 'https://cdn.example.com/profile.jpg';
+
+    expect(extractProfilePictureUrl({ profilePictureUrl: url })).toBe(url);
+  });
+
+  test('rewrites a localhost profile picture URL to the configured backend', () => {
+    const url = extractProfilePictureUrl({
+      profilePictureUrl:
+        'http://localhost:8085/api/profile-pictures/5857207b-0f0f-4a8e-b08a-151ccca441cb.jpg',
+    });
+
+    expect(new URL(url!).origin).toBe(new URL(ENV.API_BASE_URL).origin);
+    expect(new URL(url!).pathname).toBe(
+      '/api/profile-pictures/5857207b-0f0f-4a8e-b08a-151ccca441cb.jpg',
+    );
+    expect(
+      getProfilePictureHeaders(
+        'http://localhost:8085/api/profile-pictures/5857207b-0f0f-4a8e-b08a-151ccca441cb.jpg',
+        'test-token',
+      ),
+    ).toEqual(expect.objectContaining({ Authorization: 'Bearer test-token' }));
+  });
+});
+
+describe('GET job-seeker profile', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  test('fetches and normalizes profilePictureUrl from the profile response', async () => {
+    const profilePictureUrl =
+      'http://localhost:8085/api/profile-pictures/5857207b-0f0f-4a8e-b08a-151ccca441cb.jpg';
+    const fetchSpy = mockFetch({ profilePictureUrl });
+    globalThis.fetch = fetchSpy;
+    const store = makeStore();
+
+    const profile = await store
+      .dispatch(candidateApi.endpoints.getJobSeekerProfile.initiate())
+      .unwrap();
+
+    expect(new URL(fetchSpy.mock.calls[0][0].url).pathname).toBe('/api/job-seeker/profile');
+    expect(new URL(profile.profilePictureUrl!).origin).toBe(
+      new URL(ENV.API_BASE_URL).origin,
+    );
+    expect(new URL(profile.profilePictureUrl!).pathname).toBe(
+      '/api/profile-pictures/5857207b-0f0f-4a8e-b08a-151ccca441cb.jpg',
+    );
+    store.dispatch(baseApi.util.resetApiState());
+  });
+});
 
 describe('GET job-seeker jobs filters', () => {
   afterEach(() => jest.restoreAllMocks());
@@ -93,6 +163,45 @@ describe('GET job-seeker jobs filters', () => {
       expect(request.method).toBe('POST');
       expect(request.url).toMatch(/\/api\/job-seeker\/jobs\/42\/save$/);
       expect(await request.clone().text()).toBe('');
+      store.dispatch(baseApi.util.resetApiState());
+    });
+  });
+
+  describe('POST job-seeker profile picture', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    test('uploads multipart form data to the authenticated profile-picture endpoint', async () => {
+      const fetchSpy = jest.fn().mockResolvedValue(
+        new Response(JSON.stringify({ profilePictureUrl: '/uploads/profile.jpg' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      globalThis.fetch = fetchSpy;
+      const store = makeStore();
+      store.dispatch(setCredentials({
+        token: 'recruiter-jwt-token',
+        user: {
+          id: '1',
+          role: 'CANDIDATE',
+          name: 'Test Candidate',
+          phone: '1234567890',
+          isVerified: true,
+        },
+      }));
+
+      const formData = new FormData();
+      formData.append('file', 'profile-picture-content');
+      await store.dispatch(
+        candidateApi.endpoints.uploadJobSeekerProfilePicture.initiate(formData),
+      ).unwrap();
+
+      const request: Request = fetchSpy.mock.calls[0][0];
+      expect(new URL(request.url).pathname).toMatch(/\/api\/job-seeker\/profile-picture$/);
+      expect(request.method).toBe('POST');
+      expect(request.headers.get('Authorization')).toBe('Bearer recruiter-jwt-token');
+      expect(request.headers.get('Content-Type')).toMatch(/^multipart\/form-data; boundary=/);
+      expect(await request.clone().text()).toContain('name="file"');
       store.dispatch(baseApi.util.resetApiState());
     });
   });

@@ -30,10 +30,15 @@ export type AuthStackParamList = {
 };
 
 /* ---------------- Shared (used by both role stacks) ---------------- */
-type SharedRoutes = {
+export type SharedRoutes = {
   Notifications: undefined;
   Settings: undefined;
   RaiseComplaint: undefined;
+  Account: undefined;
+  ChangePassword: undefined;
+  CareerPreferences: undefined;
+  CommunicationPrivacy: undefined;
+  BlockedCompanies: undefined;
 };
 
 /* ---------------- Candidate ---------------- */

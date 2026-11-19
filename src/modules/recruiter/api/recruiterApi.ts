@@ -46,6 +46,47 @@ export type RecruiterProfile = {
   profilePictureUrl?: string;
 };
 
+function asProfileRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+export function normalizeRecruiterProfile(response: unknown): RecruiterProfile {
+  const record = asProfileRecord(response);
+  if (!record) {
+    throw new Error('Unexpected recruiter profile response.');
+  }
+  let profile: Record<string, unknown> = record;
+
+  for (let depth = 0; depth < 4; depth += 1) {
+    const nested: Record<string, unknown> | undefined =
+      asProfileRecord(profile.data) ??
+      asProfileRecord(profile.profile) ??
+      asProfileRecord(profile.recruiterProfile) ??
+      asProfileRecord(profile.companyProfile);
+    if (!nested) break;
+    profile = nested;
+  }
+
+  const asText = (value: unknown) =>
+    typeof value === 'string' && value.trim() ? value.trim() : undefined;
+
+  return {
+    companyName: asText(profile.companyName),
+    companyWebsite: asText(profile.companyWebsite),
+    companyIndustry: asText(profile.companyIndustry),
+    companyDescription: asText(profile.companyDescription),
+    companyLocation: asText(profile.companyLocation),
+    profilePictureUrl: asText(
+      profile.profilePictureUrl ??
+        profile.profileImageUrl ??
+        profile.companyLogoUrl ??
+        profile.logoUrl,
+    ),
+  };
+}
+
 export type RecruiterJob = {
   id: ID;
   companyName: string;
@@ -55,6 +96,8 @@ export type RecruiterJob = {
   candidateVacancies: number;
   location: string;
   approvalStatus?: Job['approvalStatus'];
+  /** Lifecycle status set by the recruiter, e.g. ACTIVE or EXPIRED. */
+  status?: string;
   postedAt?: string;
 };
 
@@ -133,6 +176,14 @@ function normalizeRecruiterJobs(raw: unknown): RecruiterJob[] {
   return Array.isArray(list) ? (list as RecruiterJob[]) : [];
 }
 
+export type BlockedJobSeekerEntry = {
+  targetUserId: number;
+  targetRole: string;
+  blocked: boolean;
+  blockedAt: string;
+  jobSeekerName?: string;
+};
+
 export const recruiterApi = baseApi.injectEndpoints({
   endpoints: build => ({
     /* Company */
@@ -143,7 +194,27 @@ export const recruiterApi = baseApi.injectEndpoints({
     /** GET /api/recruiter/profile */
     getRecruiterProfile: build.query<RecruiterProfile, void>({
       query: () => '/recruiter/profile',
+      transformResponse: normalizeRecruiterProfile,
       providesTags: ['Company'],
+    }),
+
+    /** POST /api/recruiter/profile-picture — multipart/form-data, field name: 'file' */
+    uploadRecruiterProfilePicture: build.mutation<unknown, FormData>({
+      query: formData => ({
+        url: '/recruiter/profile-picture',
+        method: 'POST',
+        body: formData,
+        // Do NOT set Content-Type — RN sets it with the correct multipart boundary automatically
+      }),
+      transformResponse: (res: unknown, meta) => {
+        logApi('POST /api/recruiter/profile-picture', httpStatus(meta), res);
+        return res;
+      },
+      transformErrorResponse: (err, meta) => {
+        logApi('POST /api/recruiter/profile-picture (error)', httpStatus(meta) ?? err.status, err.data ?? err);
+        return err;
+      },
+      invalidatesTags: ['Company'],
     }),
 
     /** Create or update the signed-in recruiter's company profile – PUT /api/recruiter/profile. */
@@ -193,6 +264,16 @@ export const recruiterApi = baseApi.injectEndpoints({
     updateJob: build.mutation<Job, { id: ID } & Partial<Job>>({
       query: ({ id, ...body }) => ({ url: `/recruiter/jobs/${id}`, method: 'PUT', body }),
       invalidatesTags: ['MyJobs'],
+    }),
+    /** PATCH /api/recruiter/jobs/{jobId}/status */
+    updateJobStatus: build.mutation<RecruiterJob, { jobId: ID; status: 'EXPIRED' }>({
+      query: ({ jobId, status }) => ({
+        url: `/recruiter/jobs/${jobId}/status`,
+        method: 'PATCH',
+        body: { status },
+        headers: { 'Content-Type': 'application/json' },
+      }),
+      invalidatesTags: ['MyJobs', 'Job'],
     }),
 
     /* Dashboard counts */
@@ -340,6 +421,32 @@ export const recruiterApi = baseApi.injectEndpoints({
       invalidatesTags: ['Interview', 'Application'],
     }),
 
+    /* Blocked job seekers */
+    getBlockedJobSeekers: build.query<BlockedJobSeekerEntry[], void>({
+      query: () => '/recruiter/blocked-job-seekers',
+      transformResponse: (res: unknown) => {
+        if (Array.isArray(res)) return res as BlockedJobSeekerEntry[];
+        const r = res as { items?: unknown; data?: unknown };
+        const list = r.items ?? r.data;
+        return Array.isArray(list) ? (list as BlockedJobSeekerEntry[]) : [];
+      },
+      providesTags: ['BlockedCandidate'],
+    }),
+    blockJobSeeker: build.mutation<BlockedJobSeekerEntry, { jobSeekerId: number }>({
+      query: ({ jobSeekerId }) => ({
+        url: `/recruiter/job-seekers/${jobSeekerId}/block`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['BlockedCandidate'],
+    }),
+    unblockJobSeeker: build.mutation<void, { jobSeekerId: number }>({
+      query: ({ jobSeekerId }) => ({
+        url: `/recruiter/job-seekers/${jobSeekerId}/block`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['BlockedCandidate'],
+    }),
+
     /* Subscription & payments */
     getPlans: build.query<SubscriptionPlan[], void>({
       query: () => '/subscriptions/plans',
@@ -362,9 +469,11 @@ export const {
   useUpdateCompanyMutation,
   useGetRecruiterProfileQuery,
   useUpsertRecruiterProfileMutation,
+  useUploadRecruiterProfilePictureMutation,
   useGetMyJobsQuery,
   useCreateJobMutation,
   useUpdateJobMutation,
+  useUpdateJobStatusMutation,
   useGetJobsCountQuery,
   useGetActiveJobsCountQuery,
   useGetApplicationsCountQuery,
@@ -383,4 +492,7 @@ export const {
   useGetPlansQuery,
   useCreatePaymentOrderMutation,
   useVerifyPaymentMutation,
+  useGetBlockedJobSeekersQuery,
+  useBlockJobSeekerMutation,
+  useUnblockJobSeekerMutation,
 } = recruiterApi;

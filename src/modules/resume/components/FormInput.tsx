@@ -26,6 +26,7 @@ export default function FormInput({
       multiline={multiline}
       placeholder={placeholder ?? label}
       textAlignVertical={multiline ? 'top' : 'center'}
+      fieldStyle={multiline ? styles.multilineField : undefined}
       style={multiline ? styles.multiline : undefined}
       {...rest}
     />
@@ -33,5 +34,8 @@ export default function FormInput({
 }
 
 const styles = StyleSheet.create({
-  multiline: { minHeight: 112, paddingTop: 12 },
+  // AppInput has a fixed single-line field height. Expand that container as
+  // well as the TextInput so a multiline field cannot overlap following text.
+  multilineField: { height: undefined, minHeight: 112, alignItems: 'stretch', paddingVertical: 12 },
+  multiline: { minHeight: 88, paddingTop: 0, paddingBottom: 0 },
 });
