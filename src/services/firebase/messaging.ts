@@ -1,5 +1,10 @@
-import { getMessaging, getToken } from '@react-native-firebase/messaging';
-import { Platform } from 'react-native';
+import {
+  AuthorizationStatus,
+  getMessaging,
+  getToken,
+  requestPermission,
+} from '@react-native-firebase/messaging';
+import { PermissionsAndroid, Platform } from 'react-native';
 
 export async function getDeviceFcmToken(): Promise<string> {
   const token = await getToken(getMessaging());
@@ -9,11 +14,39 @@ export async function getDeviceFcmToken(): Promise<string> {
   return token;
 }
 
+async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    if (Number(Platform.Version) < 33) {
+      return true;
+    }
+
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  }
+
+  if (Platform.OS === 'ios') {
+    const status = await requestPermission(getMessaging());
+    return (
+      status === AuthorizationStatus.AUTHORIZED ||
+      status === AuthorizationStatus.PROVISIONAL ||
+      status === AuthorizationStatus.EPHEMERAL
+    );
+  }
+
+  return false;
+}
+
 export async function getFcmLoginFields(): Promise<{
   fcmToken?: string;
   platform?: string;
 }> {
   try {
+    if (!(await requestNotificationPermission())) {
+      return {};
+    }
+
     return {
       fcmToken: await getDeviceFcmToken(),
       platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',

@@ -138,7 +138,10 @@ export default function NotificationsScreen() {
     isError,
     isFetching,
     refetch,
-  } = useGetNotificationsQuery({ page: 1 });
+  } = useGetNotificationsQuery(
+    { page: 1 },
+    { refetchOnMountOrArgChange: true },
+  );
 
   const [markRead] = useMarkNotificationReadMutation();
 
