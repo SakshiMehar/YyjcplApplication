@@ -108,7 +108,28 @@ export const sharedApi = baseApi.injectEndpoints({
     }),
     markNotificationRead: build.mutation<void, ID>({
       query: id => ({ url: `/notifications/${id}/read`, method: 'POST' }),
-      invalidatesTags: ['Notification'],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          sharedApi.util.updateQueryData(
+            'getNotifications',
+            { page: 1 },
+            draft => {
+              const notification = draft.items.find(
+                item => String(item.id) === String(id),
+              );
+              if (notification) {
+                notification.read = true;
+              }
+            },
+          ),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
     getMyComplaints: build.query<Complaint[], void>({
       query: () => '/complaints',

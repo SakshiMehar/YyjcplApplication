@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -158,13 +159,59 @@ export default function NotificationsScreen() {
 
   const [markRead] = useMarkNotificationReadMutation();
 
-  const notifications = data?.items ?? [];
+  const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+
+  const notifications = (data?.items ?? []).map(item =>
+    readIds.has(String(item.id)) ? { ...item, read: true } : item,
+  );
   const unreadCount = notifications.filter(n => n.read !== true).length;
 
   const handlePress = async (item: AppNotification) => {
     if (item.read !== true) {
-      try { await markRead(item.id).unwrap(); } catch { /* silent */ }
+      try {
+        await markRead(item.id).unwrap();
+        setReadIds(previous => new Set(previous).add(String(item.id)));
+      } catch {
+        Alert.alert('Could not mark notification as read', 'Please try again.');
+      }
     }
+  };
+
+  const handleMarkAllRead = async () => {
+    const unread = notifications.filter(item => item.read !== true);
+    if (isMarkingAll || unread.length === 0) {
+      return;
+    }
+
+    setIsMarkingAll(true);
+    const results = await Promise.all(
+      unread.map(async item => {
+        try {
+          await markRead(item.id).unwrap();
+          return { id: String(item.id), success: true };
+        } catch {
+          return { id: String(item.id), success: false };
+        }
+      }),
+    );
+
+    const succeededIds = results
+      .filter(result => result.success)
+      .map(result => result.id);
+    const failedCount = results.length - succeededIds.length;
+
+    if (succeededIds.length > 0) {
+      setReadIds(previous => new Set([...previous, ...succeededIds]));
+    }
+    if (failedCount > 0) {
+      Alert.alert(
+        'Some notifications could not be marked as read',
+        `${failedCount} notification${failedCount === 1 ? '' : 's'} failed. Please try again.`,
+      );
+    }
+
+    setIsMarkingAll(false);
   };
 
   return (
@@ -187,6 +234,20 @@ export default function NotificationsScreen() {
             </View>
           ) : null}
         </View>
+        <Pressable
+          onPress={handleMarkAllRead}
+          disabled={unreadCount === 0 || isMarkingAll}
+          accessibilityRole="button"
+          style={styles.markAllButton}>
+          <AppText
+            variant="caption"
+            style={[
+              styles.markAllText,
+              (unreadCount === 0 || isMarkingAll) && styles.markAllDisabled,
+            ]}>
+            {isMarkingAll ? 'Marking…' : 'Mark all as read'}
+          </AppText>
+        </Pressable>
       </View>
 
       {/* ── List ── */}
@@ -238,6 +299,9 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   headerMid: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  markAllButton: { paddingVertical: vs(8), paddingLeft: spacing.xs },
+  markAllText: { color: colors.primary, fontWeight: '700', fontSize: font(11) },
+  markAllDisabled: { color: colors.textMuted },
   unreadBadge: {
     backgroundColor: colors.primary, borderRadius: radius.pill,
     paddingHorizontal: spacing.sm, paddingVertical: vs(2),
