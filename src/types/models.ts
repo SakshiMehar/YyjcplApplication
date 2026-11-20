@@ -123,8 +123,8 @@ export interface AppNotification {
   id: ID;
   title: string;
   body: string;
-  type: 'APPLICATION' | 'INTERVIEW' | 'JOB' | 'PAYMENT' | 'SYSTEM';
-  read: boolean;
+  type: string;
+  read?: boolean;
   createdAt: string;
   data?: Record<string, string>;
 }

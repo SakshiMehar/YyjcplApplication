@@ -24,7 +24,7 @@ import ChangePasswordScreen from '../modules/shared/account/ChangePasswordScreen
 import CareerPreferencesScreen from '../modules/candidate/settings/CareerPreferencesScreen';
 import CommunicationPrivacyScreen from '../modules/candidate/settings/CommunicationPrivacyScreen';
 import BlockedJobSeekersScreen from '../modules/recruiter/settings/BlockedJobSeekersScreen';
-import { BriefcaseBusiness, Building2, LayoutDashboard, Search, Users } from 'lucide-react-native';
+import { BriefcaseBusiness, Building2, LayoutDashboard, Users } from 'lucide-react-native';
 import { tabOptions, useTabScreenOptions } from './tabBarOptions';
 import { RecruiterStackParamList, RecruiterTabParamList } from './types';
 
@@ -55,11 +55,6 @@ function RecruiterTabs() {
           options={tabOptions('Applicants', Users)}
         />
         <Tab.Screen
-          name="CandidateSearch"
-          component={CandidateSearchScreen}
-          options={tabOptions('Search', Search)}
-        />
-        <Tab.Screen
           name="CompanyProfile"
           component={CompanyProfileScreen}
           options={tabOptions('Profile', Building2)}
@@ -74,6 +69,7 @@ export default function RecruiterNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="RecruiterTabs" component={RecruiterTabs} />
+      <Stack.Screen name="CandidateSearch" component={CandidateSearchScreen} />
       <Stack.Screen name="PostJob" component={PostJobScreen} />
       <Stack.Screen name="ApplicantDetails" component={ApplicantDetailsScreen} />
       <Stack.Screen name="CandidateDetails" component={CandidateDetailsScreen} />

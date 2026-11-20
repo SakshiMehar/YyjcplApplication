@@ -334,7 +334,7 @@ export default function JobSearchScreen() {
   const [applyToJob] = useApplyToJobMutation();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items?.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => n.read !== true);
 
   // Greeting based on time
   const hour = new Date().getHours();

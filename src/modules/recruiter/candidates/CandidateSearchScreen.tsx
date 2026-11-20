@@ -11,7 +11,7 @@ export default function CandidateSearchScreen() {
   return (
     <ScreenLayout
       title="Search Candidates"
-      showBack={false}
+      showBack
       edges={['top']}
       rootStyle={styles.transparentRoot}
       mainBackground="transparent">

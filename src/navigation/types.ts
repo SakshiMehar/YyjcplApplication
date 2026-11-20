@@ -74,12 +74,12 @@ export type RecruiterTabParamList = {
   RecruiterDashboard: undefined;
   MyJobs: undefined;
   Applications: { jobId?: ID } | undefined;
-  CandidateSearch: undefined;
   CompanyProfile: undefined;
 };
 
 export type RecruiterStackParamList = SharedRoutes & {
   RecruiterTabs: NavigatorScreenParams<RecruiterTabParamList>;
+  CandidateSearch: undefined;
   PostJob: { jobId?: ID } | undefined;
   ApplicantDetails: { application: RecruiterApplication };
   CandidateDetails: { candidateId: ID };

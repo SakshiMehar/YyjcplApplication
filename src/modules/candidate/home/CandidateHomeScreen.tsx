@@ -245,7 +245,7 @@ export default function CandidateHomeScreen() {
   const [applyToJob] = useApplyToJobMutation();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items?.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => n.read !== true);
 
   const openTab = (screen: keyof CandidateTabParamList) =>
     navigation.navigate('CandidateTabs', { screen });

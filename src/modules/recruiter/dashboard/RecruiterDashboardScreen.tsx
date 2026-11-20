@@ -11,7 +11,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  AlignJustify,
   ArrowRight,
   Bell,
   BriefcaseBusiness,
@@ -20,6 +19,7 @@ import {
   FileText,
   Plus,
   Rocket,
+  Search,
   Star,
 } from 'lucide-react-native';
 import { AppText, UserAvatar } from '../../../components/common';
@@ -161,7 +161,7 @@ export default function RecruiterDashboardScreen() {
   const { data: shortlistedCount }                      = useGetShortlistedCountQuery();
   const { data: applications = [], isLoading: appsLoading } = useGetJobApplicationsQuery();
   const { data: notifications }                         = useGetNotificationsQuery({ page: 1 });
-  const hasUnread = !!notifications?.items?.some(n => !n.read);
+  const hasUnread = !!notifications?.items?.some(n => n.read !== true);
 
   const companyName = recruiterProfile?.companyName ?? pendingName ?? 'Your Company';
   const recentApps = applications.slice(0, RECENT_COUNT);
@@ -184,10 +184,11 @@ export default function RecruiterDashboardScreen() {
           {/* Top bar inside the card */}
           <View style={styles.topBar}>
             <Pressable
-              onPress={() => openTab('CompanyProfile')}
-              style={styles.menuBtn}
-              accessibilityLabel="Menu">
-              <AlignJustify size={scale(20)} color={colors.text} />
+              onPress={() => navigation.navigate('CandidateSearch')}
+              style={styles.searchBtn}
+              accessibilityLabel="Search candidates"
+              accessibilityRole="button">
+              <Search size={scale(20)} color={colors.text} />
             </Pressable>
             <Pressable
               onPress={() => navigation.navigate('Notifications')}
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
     paddingBottom: vs(8),
   },
-  menuBtn: {
+  searchBtn: {
     width: scale(40), height: scale(40), borderRadius: scale(10),
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',

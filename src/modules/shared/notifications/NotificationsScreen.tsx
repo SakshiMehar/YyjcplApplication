@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Bell,
@@ -33,6 +33,16 @@ const TYPE_CONFIG: Record<
     icon: <BriefcaseBusiness size={scale(18)} color="#3B82F6" />,
     bg: '#DBEAFE',
     color: '#3B82F6',
+  },
+  NEW_APPLICATION: {
+    icon: <BriefcaseBusiness size={scale(18)} color="#3B82F6" />,
+    bg: '#DBEAFE',
+    color: '#3B82F6',
+  },
+  APPLICATION_UPDATE: {
+    icon: <CalendarDays size={scale(18)} color="#F59E0B" />,
+    bg: '#FEF9C3',
+    color: '#F59E0B',
   },
   INTERVIEW: {
     icon: <CalendarDays size={scale(18)} color="#F59E0B" />,
@@ -73,12 +83,12 @@ function NotifRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        !item.read && styles.rowUnread,
+        item.read !== true && styles.rowUnread,
         pressed && styles.rowPressed,
       ]}
       accessibilityRole="button">
       {/* Unread dot */}
-      {!item.read && <View style={styles.unreadDot} />}
+      {item.read !== true && <View style={styles.unreadDot} />}
 
       {/* Type icon */}
       <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
@@ -88,9 +98,9 @@ function NotifRow({
       {/* Content */}
       <View style={styles.content}>
         <AppText
-          variant={item.read ? 'body' : 'bodyBold'}
+          variant={item.read !== true ? 'bodyBold' : 'body'}
           numberOfLines={1}
-          style={!item.read && styles.unreadTitle}>
+          style={item.read !== true && styles.unreadTitle}>
           {item.title}
         </AppText>
         <AppText
@@ -138,18 +148,21 @@ export default function NotificationsScreen() {
     isError,
     isFetching,
     refetch,
-  } = useGetNotificationsQuery(
-    { page: 1 },
-    { refetchOnMountOrArgChange: true },
+  } = useGetNotificationsQuery({ page: 1 });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
   );
 
   const [markRead] = useMarkNotificationReadMutation();
 
   const notifications = data?.items ?? [];
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => n.read !== true).length;
 
   const handlePress = async (item: AppNotification) => {
-    if (!item.read) {
+    if (item.read !== true) {
       try { await markRead(item.id).unwrap(); } catch { /* silent */ }
     }
   };
