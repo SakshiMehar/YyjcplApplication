@@ -1,13 +1,17 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { spacing, vs } from '../../theme';
+import { StyleSheet } from 'react-native';
+import Appear from '../animated/Appear';
+import LottieAnimation from '../animated/LottieAnimation';
+import { scale, spacing, vs } from '../../theme';
 import AppText from './AppText';
 
-type Props = { title: string; message?: string };
+type Props = { title: string; message?: string; animation?: boolean };
 
-export default function EmptyState({ title, message }: Props) {
+/** Nothing-to-show state: floating magnifier (Lottie) + title + message. */
+export default function EmptyState({ title, message, animation = true }: Props) {
   return (
-    <View style={styles.container}>
+    <Appear from="zoom" style={styles.container}>
+      {animation ? <LottieAnimation name="empty" size={scale(120)} style={styles.art} /> : null}
       <AppText variant="h3" align="center">
         {title}
       </AppText>
@@ -16,11 +20,12 @@ export default function EmptyState({ title, message }: Props) {
           {message}
         </AppText>
       ) : null}
-    </View>
+    </Appear>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', paddingVertical: vs(40), paddingHorizontal: spacing.xl },
+  container: { alignItems: 'center', paddingVertical: vs(28), paddingHorizontal: spacing.xl },
+  art: { marginBottom: vs(4) },
   message: { marginTop: spacing.sm },
 });

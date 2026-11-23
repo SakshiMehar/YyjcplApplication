@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { SkeletonCard, SkeletonList } from '../../../components/animated';
 import {
   CalendarDays,
   CheckCircle2,
@@ -238,9 +239,9 @@ export default function ApplicationTrackerScreen({
   return (
     <ScreenLayout title="Application Details">
       {isLoading ? (
-        <View style={styles.state}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <AppText color="textSecondary">Loading application…</AppText>
+        <View style={styles.skeleton}>
+          <SkeletonCard />
+          <SkeletonList count={3} />
         </View>
       ) : isError ? (
         <View style={styles.state}>
@@ -257,6 +258,7 @@ export default function ApplicationTrackerScreen({
 }
 
 const styles = StyleSheet.create({
+  skeleton: { padding: spacing.lg },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   retry: { minWidth: scale(140) },
   jobTitle: { marginTop: spacing.md },

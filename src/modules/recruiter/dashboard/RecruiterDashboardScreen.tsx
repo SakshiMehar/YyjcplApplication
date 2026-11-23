@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,10 +23,11 @@ import {
   Star,
 } from 'lucide-react-native';
 import { AppText, UserAvatar } from '../../../components/common';
+import { AnimatedNumber, Appear, Floating, Tilt3D } from '../../../components/animated';
 import { RecruiterStackParamList, RecruiterTabParamList } from '../../../navigation/types';
 import { getPendingCompany } from '../../../services/secureStorage';
 import { useAppSelector } from '../../../store/hooks';
-import { colors, font, radius, scale, spacing, vs } from '../../../theme';
+import { colors, font, gradientPresets, radius, scale, spacing, vs } from '../../../theme';
 import { useGetNotificationsQuery } from '../../shared/api/sharedApi';
 import {
   useGetActiveJobsCountQuery,
@@ -93,7 +94,7 @@ function StatCard({
         </View>
         <AppText variant="caption" color="textSecondary">{label}</AppText>
       </View>
-      <AppText style={styles.statValue}>{value ?? '–'}</AppText>
+      <AnimatedNumber value={value} style={styles.statValue} />
       <View style={styles.statBottom}>
         {change ? (
           <View style={styles.statChangeRow}>
@@ -180,6 +181,7 @@ export default function RecruiterDashboardScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + vs(24) }]}>
 
         {/* ── Hero ── */}
+        <Tilt3D float style={styles.heroTilt}>
         <View style={styles.heroCard}>
           {/* Top bar inside the card */}
           <View style={styles.topBar}>
@@ -210,16 +212,19 @@ export default function RecruiterDashboardScreen() {
               </AppText>
               <View style={styles.orangeUnderline} />
             </View>
-            <Image
-              source={require('../../../assets/illustrations/onboarding-employer.png')}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
+            <Floating style={styles.heroImageWrap}>
+              <Image
+                source={require('../../../assets/illustrations/onboarding-employer.png')}
+                style={styles.heroImage}
+                resizeMode="contain"
+              />
+            </Floating>
           </View>
         </View>
+        </Tilt3D>
 
         {/* ── 2×2 Stat grid ── */}
-        <View style={styles.grid}>
+        <Appear index={1} style={styles.grid}>
           <View style={styles.gridRow}>
             <StatCard
               label="Total Jobs"
@@ -260,9 +265,10 @@ export default function RecruiterDashboardScreen() {
               onPress={() => navigation.navigate('Shortlist')}
             />
           </View>
-        </View>
+        </Appear>
 
         {/* ── Post Job banner ── */}
+        <Appear index={2}>
         <Pressable
           onPress={() => navigation.navigate('PostJob')}
           style={styles.postBanner}
@@ -283,9 +289,10 @@ export default function RecruiterDashboardScreen() {
             <ArrowRight size={scale(14)} color={colors.primary} />
           </View>
         </Pressable>
+        </Appear>
 
         {/* ── Recent Applications ── */}
-        <View style={styles.section}>
+        <Appear index={3} style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
               <UserAvatar name="R" size={scale(28)} />
@@ -298,7 +305,7 @@ export default function RecruiterDashboardScreen() {
 
           <View style={styles.appCard}>
             {appsLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ margin: vs(20) }} />
+              <SkeletonList count={3} style={styles.skeletonInCard} />
             ) : recentApps.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <AppText variant="body" color="textMuted" style={{ textAlign: 'center' }}>
@@ -307,17 +314,17 @@ export default function RecruiterDashboardScreen() {
               </View>
             ) : (
               recentApps.map((app, i) => (
-                <React.Fragment key={String(app.applicationId)}>
+                <Appear key={String(app.applicationId)} index={i} delay={200}>
                   {i > 0 ? <View style={styles.appDivider} /> : null}
                   <AppRow
                     app={app}
                     onPress={() => navigation.navigate('ApplicantDetails', { application: app })}
                   />
-                </React.Fragment>
+                </Appear>
               ))
             )}
           </View>
-        </View>
+        </Appear>
       </ScrollView>
     </View>
   );
@@ -325,15 +332,18 @@ export default function RecruiterDashboardScreen() {
 
 /* ─── Styles ─────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
+  skeletonInCard: { padding: spacing.sm },
   root: { flex: 1, backgroundColor: 'transparent' },
   scroll: { paddingHorizontal: spacing.lg },
 
   /* Hero card */
+  heroTilt: { marginBottom: vs(20) },
+  heroImageWrap: { marginBottom: -spacing.lg, marginRight: -spacing.lg },
   heroCard: {
     backgroundColor: colors.background,
+    backgroundImage: gradientPresets.surface,
     borderRadius: 20,
     padding: spacing.lg,
-    marginBottom: vs(20),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: vs(2) },
     shadowOpacity: 0.07,
@@ -389,8 +399,6 @@ const styles = StyleSheet.create({
   heroImage: {
     width: scale(110),
     height: vs(120),
-    marginBottom: -spacing.lg,
-    marginRight: -spacing.lg,
   },
 
   /* Stats */
@@ -424,6 +432,7 @@ const styles = StyleSheet.create({
   /* Post Job banner */
   postBanner: {
     backgroundColor: colors.primary,
+    backgroundImage: gradientPresets.primary,
     borderRadius: radius.lg,
     padding: spacing.lg,
     flexDirection: 'row',

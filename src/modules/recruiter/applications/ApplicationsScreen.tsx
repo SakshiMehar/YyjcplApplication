@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -8,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -282,7 +282,7 @@ export default function ApplicationsScreen() {
               </AppText>
             </View>
 
-            {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+            {isLoading ? <SkeletonList count={4} /> : null}
           </>
         }
         ListEmptyComponent={

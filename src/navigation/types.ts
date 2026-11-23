@@ -11,6 +11,7 @@ export type AuthStackParamList = {
   OnboardingJobSeeker: undefined;
   OnboardingEmployer: undefined;
   Login: undefined;
+  AdminLogin: undefined;
   RoleSelect: undefined;
   Register: undefined;
   ForgotPassword: undefined;
@@ -90,9 +91,36 @@ export type RecruiterStackParamList = SharedRoutes & {
   Subscription: undefined;
 };
 
+/* ---------------- Admin ---------------- */
+export type AdminTabParamList = {
+  AdminDashboard: undefined;
+  AdminCandidates: undefined;
+  AdminRecruiters: undefined;
+  AdminJobs: { status?: 'PENDING' | 'APPROVED' | 'REJECTED' } | undefined;
+  AdminMore: undefined;
+};
+
+export type AdminStackParamList = {
+  AdminTabs: NavigatorScreenParams<AdminTabParamList>;
+  AdminUserDetails: { userId: ID };
+  AdminCompanies: undefined;
+  AdminApplications: undefined;
+  AdminVerification: { tab?: 'COMPANIES' | 'CANDIDATES' } | undefined;
+  AdminPlacements: undefined;
+  AdminComplaints: undefined;
+  AdminNotifications: undefined;
+  AdminReports: undefined;
+  AdminSubscriptions: undefined;
+  AdminPayments: undefined;
+  AdminStaffUsers: undefined;
+  AdminAuditLogs: undefined;
+};
+
 export type AuthScreenProps<T extends keyof AuthStackParamList> =
   NativeStackScreenProps<AuthStackParamList, T>;
 export type CandidateScreenProps<T extends keyof CandidateStackParamList> =
   NativeStackScreenProps<CandidateStackParamList, T>;
 export type RecruiterScreenProps<T extends keyof RecruiterStackParamList> =
   NativeStackScreenProps<RecruiterStackParamList, T>;
+export type AdminScreenProps<T extends keyof AdminStackParamList> =
+  NativeStackScreenProps<AdminStackParamList, T>;

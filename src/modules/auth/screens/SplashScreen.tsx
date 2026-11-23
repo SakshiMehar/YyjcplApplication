@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { ScreenLayout } from '../../../layout';
+import { RiveAnimation } from '../../../components/animated';
 import { AuthScreenProps } from '../../../navigation/types';
 import { colors } from '../../../theme';
 
@@ -26,6 +27,8 @@ export default function SplashScreen({ navigation }: AuthScreenProps<'Splash'>) 
         source={require('../../../assets/illustrations/Your Career, Our Priority.png')}
         resizeMode="stretch"
         style={styles.background}>
+        {/* Plays src/assets/rive/splash.riv over the artwork once it is registered in RIVE */}
+        <RiveAnimation name="splash" style={styles.rive} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Get Started"
@@ -43,6 +46,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  rive: { ...StyleSheet.absoluteFill },
   startButton: {
     position: 'absolute',
     left: '20.1%',

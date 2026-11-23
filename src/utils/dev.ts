@@ -18,3 +18,10 @@ export const devUser = (role: UserRole = USER_ROLES.CANDIDATE, phone = '99999999
   phone,
   isVerified: true,
 });
+
+/**
+ * DEV ONLY – demo admin login so the admin panel can be opened before the
+ * backend has an admin account. Ignored in release builds.
+ */
+export const DEV_ADMIN_ID = 'admin';
+export const DEV_ADMIN_PASSWORD = 'Admin@123';

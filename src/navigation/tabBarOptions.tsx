@@ -2,7 +2,8 @@ import React from 'react';
 import { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { LucideIcon } from 'lucide-react-native';
-import { colors, font, scale, vs } from '../theme';
+import AnimatedTabIcon from '../components/animated/AnimatedTabIcon';
+import { colors, font, glass, shadows, vs } from '../theme';
 
 const BAR_HEIGHT = vs(60); // icon + label, without the phone's system navigation area
 const PAD_TOP = vs(8);
@@ -26,14 +27,14 @@ export function useTabScreenOptions(): BottomTabNavigationOptions {
       paddingBottom: bottom + PAD_BOTTOM,
       borderTopColor: colors.border,
       backgroundColor: colors.background,
+      backgroundImage: glass.light.backgroundImage,
+      boxShadow: shadows.md,
     },
   };
 }
 
-/** Options for one tab: title + lucide icon (bolder when active). */
+/** Options for one tab: title + lucide icon that pops when selected. */
 export const tabOptions = (title: string, Icon: LucideIcon): BottomTabNavigationOptions => ({
   title,
-  tabBarIcon: ({ color, focused }) => (
-    <Icon size={scale(22)} color={color} strokeWidth={focused ? 2.4 : 1.9} />
-  ),
+  tabBarIcon: ({ color, focused }) => <AnimatedTabIcon Icon={Icon} color={color} focused={focused} />,
 });

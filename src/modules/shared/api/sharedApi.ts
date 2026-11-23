@@ -131,6 +131,28 @@ export const sharedApi = baseApi.injectEndpoints({
         }
       },
     }),
+    markAllNotificationsRead: build.mutation<void, void>({
+      query: () => ({ url: '/notifications/read-all', method: 'PUT' }),
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          sharedApi.util.updateQueryData(
+            'getNotifications',
+            { page: 1 },
+            draft => {
+              draft.items.forEach(notification => {
+                notification.read = true;
+              });
+            },
+          ),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
     getMyComplaints: build.query<Complaint[], void>({
       query: () => '/complaints',
       providesTags: ['Complaint'],
@@ -145,6 +167,7 @@ export const sharedApi = baseApi.injectEndpoints({
 export const {
   useGetNotificationsQuery,
   useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
   useGetMyComplaintsQuery,
   useRaiseComplaintMutation,
 } = sharedApi;

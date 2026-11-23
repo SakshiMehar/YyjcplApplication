@@ -21,7 +21,11 @@ import {
 } from 'lucide-react-native';
 import { AppText } from '../../../components/common';
 import { colors, font, radius, scale, spacing, vs } from '../../../theme';
-import { useGetNotificationsQuery, useMarkNotificationReadMutation } from '../api/sharedApi';
+import {
+  useGetNotificationsQuery,
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+} from '../api/sharedApi';
 import { AppNotification } from '../../../types/models';
 import { timeAgo } from '../../../utils/format';
 
@@ -158,6 +162,7 @@ export default function NotificationsScreen() {
   );
 
   const [markRead] = useMarkNotificationReadMutation();
+  const [markAllRead] = useMarkAllNotificationsReadMutation();
 
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const [isMarkingAll, setIsMarkingAll] = useState(false);
@@ -185,33 +190,17 @@ export default function NotificationsScreen() {
     }
 
     setIsMarkingAll(true);
-    const results = await Promise.all(
-      unread.map(async item => {
-        try {
-          await markRead(item.id).unwrap();
-          return { id: String(item.id), success: true };
-        } catch {
-          return { id: String(item.id), success: false };
-        }
-      }),
-    );
-
-    const succeededIds = results
-      .filter(result => result.success)
-      .map(result => result.id);
-    const failedCount = results.length - succeededIds.length;
-
-    if (succeededIds.length > 0) {
-      setReadIds(previous => new Set([...previous, ...succeededIds]));
+    try {
+      await markAllRead().unwrap();
+      setReadIds(previous => new Set([
+        ...previous,
+        ...unread.map(item => String(item.id)),
+      ]));
+    } catch {
+      Alert.alert('Could not mark notifications as read', 'Please try again.');
+    } finally {
+      setIsMarkingAll(false);
     }
-    if (failedCount > 0) {
-      Alert.alert(
-        'Some notifications could not be marked as read',
-        `${failedCount} notification${failedCount === 1 ? '' : 's'} failed. Please try again.`,
-      );
-    }
-
-    setIsMarkingAll(false);
   };
 
   return (

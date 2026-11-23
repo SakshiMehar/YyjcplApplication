@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Appear, Floating, SkeletonList, useCelebrate } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -243,6 +244,7 @@ export default function CandidateHomeScreen() {
   const [searchJobs, searchQuery] = useLazySearchJobSeekerJobsQuery();
   const { data: profile } = useGetJobSeekerProfileQuery();
   const [applyToJob] = useApplyToJobMutation();
+  const celebrate = useCelebrate();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
   const hasUnread = !!notifications?.items?.some(n => n.read !== true);
@@ -282,7 +284,7 @@ export default function CandidateHomeScreen() {
     try {
       await applyToJob({ jobId: job.id }).unwrap();
       setAppliedJobIds(current => new Set(current).add(job.id));
-      Alert.alert('Applied! 🎉', `Successfully applied for ${job.role} at ${job.companyName}.`);
+      celebrate(`Applied to ${job.role}!`);
     } catch (e) {
       const err = e as { status?: number; data?: { message?: string } };
       if (err?.status === 409) {
@@ -434,17 +436,21 @@ export default function CandidateHomeScreen() {
           </View>
 
           {/* Illustration — right side clipped */}
-          <Image
-            source={require('../../../assets/illustrations/dashboard.png')}
-            style={styles.heroIllustration}
-            resizeMode="contain"
-          />
+          <Floating>
+            <Image
+              source={require('../../../assets/illustrations/dashboard.png')}
+              style={styles.heroIllustration}
+              resizeMode="contain"
+            />
+          </Floating>
         </Pressable>
 
         {/* ── Quick actions ── */}
         <View style={styles.qaRow}>
-          {quickActions.map(({ key, ...qa }) => (
-            <QuickActionItem key={key} {...qa} />
+          {quickActions.map(({ key, ...qa }, i) => (
+            <Appear key={key} index={i} from="zoom" style={styles.qaCell}>
+              <QuickActionItem key={key} {...qa} />
+            </Appear>
           ))}
         </View>
 
@@ -462,7 +468,7 @@ export default function CandidateHomeScreen() {
         </View>
 
         {jobsQuery.isLoading || searchQuery.isFetching ? (
-          <ActivityIndicator color={colors.primary} style={styles.loader} />
+          <SkeletonList count={3} variant="card" />
         ) : displayedJobs.length === 0 ? (
           <View style={styles.emptyWrap}>
             <AppText variant="body" color="textMuted" style={styles.emptyText}>
@@ -476,9 +482,9 @@ export default function CandidateHomeScreen() {
             </AppText>
           </View>
         ) : (
-          displayedJobs.slice(0, 5).map(job => (
+          displayedJobs.slice(0, 5).map((job, i) => (
+            <Appear key={job.id} index={i}>
             <HomeJobCard
-              key={job.id}
               job={job}
               onPress={() => navigation.navigate('JobDetails', { job })}
               onApply={() => handleApply(job)}
@@ -488,6 +494,7 @@ export default function CandidateHomeScreen() {
               isSaving={savingId === job.id}
               saved={savedJobIds.has(job.id) || Boolean(job.isSaved)}
             />
+            </Appear>
           ))
         )}
       </ScrollView>
@@ -669,6 +676,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: vs(24),
   },
+  qaCell: { flex: 1 },
   qaItem: {
     alignItems: 'center',
     gap: vs(6),

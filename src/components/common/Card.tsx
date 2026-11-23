@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, ViewProps } from 'react-native';
-import { colors, radius, spacing } from '../../theme';
+import { colors, radius, shadows, spacing } from '../../theme';
 import Pressable from './InteractivePressable';
 
 type Props = ViewProps & { onPress?: () => void };
@@ -21,5 +21,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
     marginBottom: spacing.md,
+    boxShadow: shadows.sm,
   },
 });

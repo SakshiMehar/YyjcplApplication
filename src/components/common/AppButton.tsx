@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
-import { colors, ColorName, radius, scale, sizes, spacing } from '../../theme';
+import { colors, ColorName, gradientPresets, radius, shadows, sizes, spacing } from '../../theme';
 import AppText from './AppText';
 import Pressable from './InteractivePressable';
 
@@ -64,7 +64,8 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary,
-    boxShadow: `0px ${scale(6)}px ${scale(14)}px rgba(249, 115, 22, 0.32)`,
+    backgroundImage: gradientPresets.primary,
+    boxShadow: shadows.glow(),
   },
   outline: { borderWidth: 1, borderColor: colors.primary, backgroundColor: 'transparent' },
   ghost: { backgroundColor: 'transparent' },

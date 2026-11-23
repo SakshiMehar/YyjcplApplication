@@ -13,7 +13,10 @@ import { colors, radius, scale, spacing, vs } from '../../../theme';
 import AuthFormLayout from '../components/AuthFormLayout';
 import AuthHeader from '../components/AuthHeader';
 
-const ROLES: { role: UserRole; title: string; subtitle: string }[] = [
+/** Roles that can sign up from the app (admins are created by YYJCPL staff). */
+type SignUpRole = Exclude<UserRole, typeof USER_ROLES.ADMIN>;
+
+const ROLES: { role: SignUpRole; title: string; subtitle: string }[] = [
   { role: USER_ROLES.CANDIDATE, title: 'Job Seeker', subtitle: 'Find jobs & grow\nyour career' },
   { role: USER_ROLES.RECRUITER, title: 'Recruiter', subtitle: 'Hire talent for\nyour company' },
 ];

@@ -1,11 +1,13 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors } from '../../theme';
+import { StyleSheet, View } from 'react-native';
+import LottieAnimation from '../animated/LottieAnimation';
+import { scale } from '../../theme';
 
+/** Full-screen loading state – bouncing brand-coloured dots (Lottie). */
 export default function Loader() {
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.primary} />
+    <View style={styles.container} accessibilityLabel="Loading" accessibilityRole="progressbar">
+      <LottieAnimation name="loading" size={scale(56)} />
     </View>
   );
 }

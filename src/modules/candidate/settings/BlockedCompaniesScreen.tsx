@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -8,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import {
   Building2,
@@ -219,7 +219,7 @@ export default function BlockedCompaniesScreen() {
         <AppText style={styles.blockedHeading}>Companies you blocked</AppText>
 
         {blockedLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: vs(20) }} />
+          <SkeletonList count={3} style={{ marginTop: vs(12) }} />
         ) : blocked.length === 0 ? (
           <View style={styles.emptyWrap}>
             <View style={styles.emptyIcon}>

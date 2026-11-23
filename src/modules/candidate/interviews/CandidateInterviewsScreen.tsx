@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   ImageBackground,
   RefreshControl,
   StyleSheet,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarDays, Clock3, MapPin, Video } from 'lucide-react-native';
@@ -174,10 +174,7 @@ export default function CandidateInterviewsScreen() {
         resizeMode="cover"
         style={styles.background}>
       {isLoading ? (
-        <View style={styles.state}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <AppText variant="caption" color="textSecondary">Loading your interviews…</AppText>
-        </View>
+        <SkeletonList count={3} variant="card" style={styles.skeleton} />
       ) : isError ? (
         <View style={styles.state}>
           <AppText variant="h3" align="center">Could not load interviews</AppText>
@@ -230,6 +227,7 @@ export default function CandidateInterviewsScreen() {
 }
 
 const styles = StyleSheet.create({
+  skeleton: { padding: spacing.lg },
   background: { flex: 1 },
   list: { padding: spacing.lg, paddingBottom: vs(24) },
   emptyList: { flexGrow: 1 },

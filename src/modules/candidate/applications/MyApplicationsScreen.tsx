@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -8,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -264,9 +264,7 @@ export default function MyApplicationsScreen() {
 
             {/* Loading */}
             {isLoading ? (
-              <View style={styles.loaderWrap}>
-                <ActivityIndicator size="large" color={colors.primary} />
-              </View>
+              <SkeletonList count={4} variant="card" />
             ) : null}
 
             {/* Section label */}

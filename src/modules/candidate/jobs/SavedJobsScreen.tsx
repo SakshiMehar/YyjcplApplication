@@ -7,6 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -148,9 +149,7 @@ export default function SavedJobsScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <SkeletonList count={3} variant="card" style={styles.skeleton} />
       ) : isError ? (
         <View style={styles.error}>
           <AppText variant="bodyBold" align="center">Could not load saved jobs</AppText>
@@ -190,6 +189,7 @@ export default function SavedJobsScreen() {
 }
 
 const styles = StyleSheet.create({
+  skeleton: { padding: spacing.lg },
   root: { flex: 1, backgroundColor: colors.surface },
   heading: {
     flexDirection: 'row',

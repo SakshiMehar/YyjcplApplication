@@ -6,7 +6,7 @@ One React Native CLI app. After OTP login the user's **role** decides which app 
 |-----------|------|
 | Candidate | Profile → Resume → Search jobs → Apply → Track → Shortlisted → Interview → Selected → Placed |
 | Recruiter | Company profile → Post job (admin approves) → Applications → Search candidates → Shortlist → Schedule interview → Select |
-| Admin     | Separate **web panel** (not in this app) – verification, job approvals, placements, complaints, subscriptions, payments, notifications, reports |
+| Admin     | In-app **admin panel** (Login → "Admin Login" → admin ID + password) – Dashboard, Candidates, Recruiters, Companies, Jobs, Applications, Verification, Placements, Complaints, Notifications, Reports, Subscriptions, Payments, Users (admin staff), Audit Logs. Uses demo data in `src/modules/admin/data` until admin APIs exist; debug-build demo login `admin` / `Admin@123` |
 
 See [docs/ROADMAP.md](./docs/ROADMAP.md) for the current implementation status, complete product scope, and recommended delivery phases.
 
@@ -53,7 +53,7 @@ src/
 ├── components/
 │   ├── common/           AppText, AppButton, AppInput, Card, Loader, EmptyState
 │   ├── jobs/             JobCard, StatusBadge (shared by both roles)
-│   └── animated/         Lottie / Rive / Skia / 3D wrappers (later)
+│   └── animated/         Lottie, Rive, Skia aurora + glass, Reanimated skeletons / Appear / Tilt3D / tab icons / Celebrate
 ├── navigation/           types.ts, Auth/Candidate/Recruiter navigators, tab styles
 ├── modules/              ← feature code lives here
 │   ├── auth/             screens (RoleSelect, Login, Otp), schemas, api

@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { Provider } from 'react-redux';
+import { CelebrateProvider } from '../components/animated';
 import { store } from '../store';
 import { colors } from '../theme';
 import RootNavigator from './RootNavigator';
@@ -19,9 +20,11 @@ export default function AppProvider() {
       <Provider store={store}>
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" />
-          <NavigationContainer theme={navTheme}>
-            <RootNavigator />
-          </NavigationContainer>
+          <CelebrateProvider>
+            <NavigationContainer theme={navTheme}>
+              <RootNavigator />
+            </NavigationContainer>
+          </CelebrateProvider>
         </SafeAreaProvider>
       </Provider>
     </GestureHandlerRootView>

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { Plus } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AppButton, AppText, Card, EmptyState, Loader } from '../../../components/common';
+import { AppButton, AppText, Card, EmptyState } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { ScreenLayout } from '../../../layout';
 import { RecruiterStackParamList } from '../../../navigation/types';
@@ -130,7 +131,7 @@ export default function MyJobsScreen() {
         </Pressable>
       }>
       {isLoading ? (
-        <Loader />
+        <SkeletonList count={3} variant="card" />
       ) : isError ? (
         <View style={styles.state}>
           <EmptyState title="Could not load jobs" message="Pull to refresh or try again." />

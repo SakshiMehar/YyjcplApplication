@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AdminLoginScreen from '../modules/admin/auth/AdminLoginScreen';
 import ForgotPasswordScreen from '../modules/auth/screens/ForgotPasswordScreen';
 import LoginScreen from '../modules/auth/screens/LoginScreen';
 import OnboardingEmployerScreen from '../modules/auth/screens/OnboardingEmployerScreen';
@@ -18,6 +19,7 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
  *   Login (mobile)        → OTP → app
  *   Login (email)         → password → app            (Forgot Password → OTP → Reset Password)
  *   Create an account     → Select Role → Register → OTP → app
+ *   Admin Login           → Admin ID + password → Admin panel
  */
 export default function AuthNavigator() {
   return (
@@ -28,6 +30,7 @@ export default function AuthNavigator() {
       <Stack.Screen name="OnboardingJobSeeker" component={OnboardingJobSeekerScreen} />
       <Stack.Screen name="OnboardingEmployer" component={OnboardingEmployerScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="RoleSelect" component={RoleSelectScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

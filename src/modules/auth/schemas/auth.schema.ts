@@ -72,3 +72,10 @@ export const otpSchema = z.object({
   otp: z.string().regex(/^\d{6}$/, 'Enter the 6-digit OTP'),
 });
 export type OtpForm = z.infer<typeof otpSchema>;
+
+/* ---------- Admin login: admin ID (username / email / mobile) + password ---------- */
+export const adminLoginSchema = z.object({
+  adminId: z.string().trim().min(3, 'Enter your admin ID'),
+  password: z.string().min(1, 'Enter your password'),
+});
+export type AdminLoginForm = z.infer<typeof adminLoginSchema>;

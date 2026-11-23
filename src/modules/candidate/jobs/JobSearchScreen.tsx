@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SkeletonList } from '../../../components/animated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -510,7 +511,7 @@ export default function JobSearchScreen() {
               <AppText variant="caption" style={styles.seeAll}>See all →</AppText>
             </View>
 
-            {isLoading ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+            {isLoading ? <SkeletonList count={4} variant="card" /> : null}
           </>
         }
         ListEmptyComponent={

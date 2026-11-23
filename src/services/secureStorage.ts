@@ -22,7 +22,7 @@ function isAuthSession(value: unknown): value is AuthSession {
     typeof user === 'object' &&
     user !== null &&
     typeof user.id === 'string' &&
-    (user.role === 'CANDIDATE' || user.role === 'RECRUITER') &&
+    (user.role === 'CANDIDATE' || user.role === 'RECRUITER' || user.role === 'ADMIN') &&
     typeof user.name === 'string' &&
     typeof user.phone === 'string' &&
     typeof user.isVerified === 'boolean'

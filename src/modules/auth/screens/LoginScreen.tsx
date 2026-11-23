@@ -13,10 +13,11 @@ import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronRight, LockKeyhole, Smartphone, UserPlus } from 'lucide-react-native';
+import { ChevronRight, LockKeyhole, ShieldCheck, Smartphone, UserPlus } from 'lucide-react-native';
 import { AppInput, AppText, PasswordInput } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { BrandLogo } from '../../../components/illustrations';
+import { Appear, Floating } from '../../../components/animated';
 import { APP_NAME, APP_TAGLINE } from '../../../constants/app';
 import { USER_ROLES } from '../../../constants/roles';
 import { ScreenLayout } from '../../../layout';
@@ -30,7 +31,7 @@ import {
 import { getFcmLoginFields } from '../../../services/firebase/messaging';
 import { clearSelectedRole, setCredentials } from '../../../store/slices/authSlice';
 import { useAppDispatch } from '../../../store/hooks';
-import { colors, radius, scale, sizes, spacing, vs } from '../../../theme';
+import { colors, glass, radius, scale, shadows, sizes, spacing, vs } from '../../../theme';
 import { usePasswordLoginMutation, useReactivateAccountMutation } from '../api/authApi';
 import { backendErrorMessage } from '../hooks/useBackendLogin';
 import { LoginForm, loginSchema, looksLikePhone } from '../schemas/auth.schema';
@@ -53,7 +54,9 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
   const [reactivateAccount, { isLoading: isReactivating }] = useReactivateAccountMutation();
 
   const cardTop = height * 0.46;
-  const cardBottom = Math.max(insets.bottom + vs(54), height * 0.075);
+  const termsBottom = Math.max(insets.bottom + vs(4), vs(10));
+  // leaves room under the card for the "Admin Login" button + terms line
+  const cardBottom = Math.max(insets.bottom + vs(80), height * 0.105);
   const [brandName, ...brandSuffix] = APP_NAME.split(' ');
 
   const { control, handleSubmit } = useForm<LoginForm>({
@@ -212,14 +215,16 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
             </View>
           </View>
 
-          <Image
-            source={require('../../../assets/illustrations/splash-duo.png')}
-            resizeMode="contain"
-            style={styles.heroArt}
-            accessibilityLabel="YYJCPL Jobs candidates"
-          />
+          <Floating distance={5} style={styles.heroArtWrap}>
+            <Image
+              source={require('../../../assets/illustrations/splash-duo.png')}
+              resizeMode="contain"
+              style={styles.heroArt}
+              accessibilityLabel="YYJCPL Jobs candidates"
+            />
+          </Floating>
 
-          <View style={[styles.card, { top: cardTop, bottom: cardBottom }]}>
+          <Appear delay={80} style={[styles.card, { top: cardTop, bottom: cardBottom }]}>
             <View style={styles.cardInner}>
               <AppText variant="h3" align="center" style={styles.heading}>
                 Login with your{' '}
@@ -356,13 +361,27 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
                 )}
               </Pressable>
             </View>
+          </Appear>
+
+          <View style={[styles.adminRow, { bottom: termsBottom + vs(22) }]}>
+            <Pressable
+              onPress={() => navigation.navigate('AdminLogin')}
+              accessibilityRole="button"
+              accessibilityLabel="Admin login"
+              hitSlop={scale(6)}
+              style={({ pressed }) => [styles.adminButton, pressed && styles.adminButtonPressed]}>
+              <ShieldCheck size={scale(15)} color={colors.primary} strokeWidth={2.4} />
+              <AppText variant="caption" style={styles.adminButtonText}>
+                Admin Login
+              </AppText>
+            </Pressable>
           </View>
 
           <AppText
             variant="caption"
             color="textOnPrimary"
             align="center"
-            style={[styles.terms, { bottom: Math.max(insets.bottom + vs(4), vs(10)) }]}>
+            style={[styles.terms, { bottom: termsBottom }]}>
             By continuing, you agree to our{' '}
             <AppText variant="caption" color="textOnPrimary" style={styles.termsLink}>
               Terms of Service
@@ -396,24 +415,28 @@ const styles = StyleSheet.create({
   brandTitle: { color: '#1554B5', fontWeight: '800' },
   brandAccent: { color: '#FF6500', fontWeight: '800' },
   tagline: { color: '#1C2C65', fontStyle: 'italic', fontWeight: '600', marginTop: vs(2) },
-  heroArt: {
+  heroArtWrap: {
     position: 'absolute',
     top: '13%',
     width: '96%',
     height: '36%',
     alignSelf: 'center',
   },
+  heroArt: { width: '100%', height: '100%' },
   card: {
     position: 'absolute',
     left: scale(12),
     right: scale(12),
     zIndex: 2,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundImage: glass.light.backgroundImage,
+    borderWidth: 1,
+    borderColor: glass.light.borderColor,
     borderTopLeftRadius: scale(34),
     borderTopRightRadius: scale(34),
     borderBottomLeftRadius: scale(48),
     borderBottomRightRadius: scale(48),
-    boxShadow: `0px -${scale(5)}px ${scale(18)}px rgba(91, 77, 158, 0.16)`,
+    boxShadow: `0px -${scale(5)}px ${scale(18)}px rgba(91, 77, 158, 0.16), ${shadows.innerHighlight}`,
   },
   cardInner: {
     flex: 1,
@@ -513,6 +536,27 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)',
   },
   createAccountText: { color: '#F65F00', fontWeight: '700', fontSize: scale(15) },
+  adminRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 3,
+    alignItems: 'center',
+  },
+  adminButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    height: vs(30),
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,106,0,0.35)',
+    boxShadow: `0px ${scale(3)}px ${scale(8)}px rgba(115, 47, 0, 0.18)`,
+  },
+  adminButtonPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
+  adminButtonText: { color: '#F65F00', fontWeight: '700', fontSize: scale(12.5) },
   terms: {
     position: 'absolute',
     left: spacing.lg,
