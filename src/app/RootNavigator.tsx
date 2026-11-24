@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Loader } from '../components/common';
 import { USER_ROLES } from '../constants/roles';
-import AdminNavigator from '../navigation/AdminNavigator';
 import AuthNavigator from '../navigation/AuthNavigator';
 import CandidateNavigator from '../navigation/CandidateNavigator';
 import RecruiterNavigator from '../navigation/RecruiterNavigator';
@@ -58,7 +57,7 @@ export default function RootNavigator() {
     return <AuthNavigator />;
   }
   if (user.role === USER_ROLES.ADMIN) {
-    return <AdminNavigator />;
+    return <AuthNavigator />;
   }
   return user.role === USER_ROLES.RECRUITER ? <RecruiterNavigator /> : <CandidateNavigator />;
 }
