@@ -46,6 +46,7 @@ import {
 import {
   JobSeekerJob,
   useApplyToJobMutation,
+  useGetDashboardCountsQuery,
   useGetJobSeekerJobsQuery,
   useSaveJobMutation,
 } from '../api/candidateApi';
@@ -332,6 +333,11 @@ export default function JobSearchScreen() {
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(() => new Set());
 
   const { data: jobs = [], isLoading, isError, isFetching, refetch } = useGetJobSeekerJobsQuery();
+  const {
+    data: dashboardCounts,
+    isFetching: isCountsFetching,
+    refetch: refetchDashboardCounts,
+  } = useGetDashboardCountsQuery();
   const [applyToJob] = useApplyToJobMutation();
   const [saveJob] = useSaveJobMutation();
   const { data: notifications } = useGetNotificationsQuery({ page: 1 });
@@ -413,8 +419,11 @@ export default function JobSearchScreen() {
         ItemSeparatorComponent={() => <View style={{ height: vs(14) }} />}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => { refetch(); }}
+            refreshing={(isFetching || isCountsFetching) && !isLoading}
+            onRefresh={() => {
+              refetch();
+              refetchDashboardCounts();
+            }}
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
@@ -485,10 +494,9 @@ export default function JobSearchScreen() {
 
             {/* ── Stats row ── */}
             <View style={styles.statsRow}>
-              <StatCard value={jobs.length || 32} label="Recommended" icon={<Star size={scale(18)} color={colors.primary} />} />
-              <StatCard value={15} label="Saved" icon={<Bookmark size={scale(18)} color={colors.primary} />} />
-              <StatCard value={8} label="Applied" icon={<BriefcaseBusiness size={scale(18)} color={colors.primary} />} />
-              <StatCard value={2} label="Interviews" icon={<Users2 size={scale(18)} color={colors.primary} />} />
+              <StatCard value={dashboardCounts?.savedJobsCount ?? '—'} label="Saved" icon={<Bookmark size={scale(18)} color={colors.primary} />} />
+              <StatCard value={dashboardCounts?.appliedJobsCount ?? '—'} label="Applied" icon={<BriefcaseBusiness size={scale(18)} color={colors.primary} />} />
+              <StatCard value={dashboardCounts?.interviewCount ?? '—'} label="Interviews" icon={<Users2 size={scale(18)} color={colors.primary} />} />
             </View>
 
             {/* ── Featured job ── */}

@@ -149,9 +149,14 @@ export const authApi = baseApi.injectEndpoints({
         return err;
       },
     }),
-    /** Sends an OTP to reset the password. */
-    forgotPassword: build.mutation<{ requestId: string }, { phone: string }>({
-      query: body => ({ url: '/auth/password/forgot', method: 'POST', body }),
+    /** Emails password-reset instructions to the registered email address. */
+    forgotPassword: build.mutation<void, { email: string }>({
+      query: body => ({
+        url: '/auth/forgot-password',
+        method: 'POST',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     }),
     /** login / register → token + user; reset → resetToken. */
     verifyOtp: build.mutation<
@@ -163,8 +168,13 @@ export const authApi = baseApi.injectEndpoints({
     resendOtp: build.mutation<{ requestId: string }, { requestId: string }>({
       query: body => ({ url: '/auth/otp/resend', method: 'POST', body }),
     }),
-    resetPassword: build.mutation<void, { resetToken: string; password: string }>({
-      query: body => ({ url: '/auth/password/reset', method: 'POST', body }),
+    resetPassword: build.mutation<void, { email: string; otp: string; newPassword: string }>({
+      query: body => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     }),
     getMe: build.query<User, void>({
       query: () => '/auth/me',
@@ -209,6 +219,14 @@ export const authApi = baseApi.injectEndpoints({
         method: 'DELETE',
       }),
     }),
+    /** Associates a refreshed Firebase Cloud Messaging token with this user. */
+    registerFcmToken: build.mutation<void, { token: string; platform: 'ANDROID' | 'IOS' }>({
+      query: body => ({
+        url: '/notifications/fcm-tokens',
+        method: 'PUT',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -226,4 +244,5 @@ export const {
   useDeactivateAccountMutation,
   useReactivateAccountMutation,
   useDeleteFcmTokenMutation,
+  useRegisterFcmTokenMutation,
 } = authApi;

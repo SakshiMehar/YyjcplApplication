@@ -365,6 +365,7 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
 
           <View style={[styles.adminRow, { bottom: termsBottom + vs(22) }]}>
             <Pressable
+              
               onPress={() => navigation.navigate('AdminLogin')}
               accessibilityRole="button"
               accessibilityLabel="Admin login"

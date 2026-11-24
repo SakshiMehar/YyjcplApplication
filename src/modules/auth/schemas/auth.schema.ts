@@ -47,15 +47,19 @@ export const recruiterRegisterSchema = registerSchema.extend({
 });
 
 /* ---------- Forgot / reset password ---------- */
-export const forgotPasswordSchema = z.object({ phone });
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().min(1, 'Enter your email address').pipe(z.email('Enter a valid email address')),
+});
 export type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 
 export const resetPasswordSchema = z
   .object({
-    password: strongPassword,
+    email: z.string().trim().min(1, 'Enter your email address').pipe(z.email('Enter a valid email address')),
+    otp: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code sent to your email'),
+    newPassword: strongPassword,
     confirmPassword: z.string().min(1, 'Re-enter your password'),
   })
-  .refine(d => d.password === d.confirmPassword, {
+  .refine(d => d.newPassword === d.confirmPassword, {
     path: ['confirmPassword'],
     error: 'Passwords do not match',
   });

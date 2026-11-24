@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
+  ImageBackground,
   Pressable,
   RefreshControl,
   FlatList,
@@ -204,7 +205,10 @@ export default function NotificationsScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <ImageBackground
+      source={require('../../../assets/illustrations/interview screen.png')}
+      resizeMode="cover"
+      style={[styles.root, { paddingTop: insets.top }]}>
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable
@@ -263,7 +267,7 @@ export default function NotificationsScreen() {
           )}
         />
       )}
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -278,7 +282,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: vs(12),
-    backgroundColor: colors.background,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
@@ -306,10 +310,10 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: vs(14),
-    backgroundColor: colors.background,
+    backgroundColor: 'rgba(255,255,255,0.88)',
     position: 'relative',
   },
-  rowUnread: { backgroundColor: '#FFFBF5' },
+  rowUnread: { backgroundColor: 'rgba(255,251,245,0.94)' },
   rowPressed: { opacity: 0.8 },
   unreadDot: {
     position: 'absolute',

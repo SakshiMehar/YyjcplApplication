@@ -61,7 +61,10 @@ function StatChip({
 function ActionRow({
   icon, label, onPress, destructive = false,
 }: {
-  icon: React.ReactNode; label: string; onPress: () => void; destructive?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  destructive?: boolean;
 }) {
   return (
     <InteractivePressable
@@ -185,7 +188,11 @@ export default function CompanyProfileScreen() {
           <View style={styles.card}>
             <ActionRow icon={<Pencil size={sizes.iconSm} color={colors.primary} />} label="Edit Company Profile" onPress={() => navigation.navigate('EditCompany')} />
             <View style={styles.divider} />
-            <ActionRow icon={<Bell size={sizes.iconSm} color={colors.primary} />} label="Notifications" onPress={() => navigation.navigate('Notifications')} />
+            <ActionRow
+              icon={<Bell size={sizes.iconSm} color={colors.primary} />}
+              label="Notifications"
+              onPress={() => navigation.navigate('Notifications')}
+            />
             <View style={styles.divider} />
             <ActionRow icon={<Settings size={sizes.iconSm} color={colors.primary} />} label="Settings" onPress={() => navigation.navigate('Settings')} />
             <View style={styles.divider} />

@@ -195,6 +195,13 @@ export type JobSeekerApplication = {
   };
 };
 
+/** Counts displayed in the job seeker's Jobs dashboard header. */
+export type JobSeekerDashboardCounts = {
+  savedJobsCount: number;
+  appliedJobsCount: number;
+  interviewCount: number;
+};
+
 export type ApplicationSchedule = {
   scheduledAt?: string;
   mode?: string;
@@ -340,6 +347,21 @@ function normalizeApplications(res: unknown): JobSeekerApplication[] {
     }];
   });
 
+}
+
+function normalizeDashboardCounts(res: unknown): JobSeekerDashboardCounts {
+  const body = asRecord(res);
+  const data = asRecord(body?.data) ?? body;
+  const count = (value: unknown) => {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  return {
+    savedJobsCount: count(data?.savedJobsCount),
+    appliedJobsCount: count(data?.appliedJobsCount),
+    interviewCount: count(data?.interviewCount),
+  };
 }
 
 function normalizeJobs(res: unknown): JobSeekerJob[] {
@@ -561,6 +583,20 @@ export const candidateApi = baseApi.injectEndpoints({
       providesTags: ['Application'],
     }),
 
+    /* GET /api/job-seeker/dashboard/counts */
+    getDashboardCounts: build.query<JobSeekerDashboardCounts, void>({
+      query: () => '/job-seeker/dashboard/counts',
+      transformResponse: (res: unknown, meta) => {
+        logApi('GET /api/job-seeker/dashboard/counts', httpStatus(meta), res);
+        return normalizeDashboardCounts(res);
+      },
+      transformErrorResponse: (err, meta) => {
+        logApi('GET /api/job-seeker/dashboard/counts (error)', httpStatus(meta) ?? err.status, err.data ?? err);
+        return err;
+      },
+      providesTags: ['SavedJob', 'Application', 'Interview'],
+    }),
+
     /* GET /api/job-seeker/projects */
     getProjects: build.query<Project[], void>({
       query: () => '/job-seeker/projects',
@@ -753,6 +789,7 @@ export const {
   useGetSavedJobsQuery,
   useRemoveSavedJobMutation,
   useGetMyApplicationsQuery,
+  useGetDashboardCountsQuery,
   useGetProjectsQuery,
   useAddProjectMutation,
   useGetCertificationsQuery,

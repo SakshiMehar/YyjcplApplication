@@ -7,6 +7,7 @@ import { Provider } from 'react-redux';
 import { CelebrateProvider } from '../components/animated';
 import { store } from '../store';
 import { colors } from '../theme';
+import PushNotificationManager from '../services/firebase/PushNotificationManager';
 import RootNavigator from './RootNavigator';
 
 const navTheme = {
@@ -18,6 +19,7 @@ export default function AppProvider() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <Provider store={store}>
+        <PushNotificationManager />
         <SafeAreaProvider>
           <StatusBar barStyle="dark-content" />
           <CelebrateProvider>

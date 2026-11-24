@@ -148,11 +148,6 @@ export default function MyJobsScreen() {
               }}
             />
           }>
-          <AppButton
-            title="Post a Job"
-            onPress={() => navigation.navigate('PostJob')}
-            style={styles.postButton}
-          />
           {jobs.length === 0 ? (
             <EmptyState title="No jobs posted" message="Create your first recruiter job post." />
           ) : (
@@ -175,7 +170,6 @@ const styles = StyleSheet.create({
   transparentRoot: { backgroundColor: 'transparent' },
   content: { padding: spacing.lg, paddingBottom: vs(96) },
   state: { padding: spacing.lg, gap: spacing.md },
-  postButton: { marginBottom: spacing.md },
   card: {},
   expireButton: { alignSelf: 'flex-start', marginTop: spacing.lg },
   cardHeader: {

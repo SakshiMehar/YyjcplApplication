@@ -261,7 +261,7 @@ export default function ApplicationActions({
         transparent
         animationType="slide"
         onRequestClose={() => setFormAction(null)}>
-        <KeyboardAvoidingView
+         <KeyboardAvoidingView
           style={styles.modalRoot}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <Pressable style={styles.scrim} onPress={() => setFormAction(null)} />

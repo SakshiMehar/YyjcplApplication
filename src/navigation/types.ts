@@ -27,7 +27,7 @@ export type AuthStackParamList = {
     fullName?: string;
     requestId?: string;
   };
-  ResetPassword: { resetToken: string };
+  ResetPassword: { email?: string; resetToken?: string };
 };
 
 /* ---------------- Shared (used by both role stacks) ---------------- */
