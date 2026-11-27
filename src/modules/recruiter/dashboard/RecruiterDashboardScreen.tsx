@@ -201,7 +201,7 @@ export default function RecruiterDashboardScreen() {
             </Pressable>
           </View>
 
-          {/* Hero content: text left, image right */}
+          {/* Hero content: text left, illustration right */}
           <View style={styles.heroContent}>
             <View style={styles.heroText}>
               <AppText variant="caption" color="textSecondary" style={styles.greetCaption}>
@@ -399,6 +399,7 @@ const styles = StyleSheet.create({
   heroImage: {
     width: scale(110),
     height: vs(120),
+    transform: [{ translateX: scale(-14) }, { scale: 1.3 }],
   },
 
   /* Stats */

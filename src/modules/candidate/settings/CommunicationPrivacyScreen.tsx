@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, ImageBackground, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { Check, ChevronLeft, CircleX, MoreVertical } from 'lucide-react-native';
+import { Check, ChevronLeft, CircleX } from 'lucide-react-native';
 import { AppText } from '../../../components/common';
 import { ScreenLayout } from '../../../layout';
 import { SharedRoutes } from '../../../navigation/types';
@@ -44,6 +44,7 @@ function CommunicationList({ visibleCount }: { visibleCount: number }) {
 }
 
 export default function CommunicationPrivacyScreen() {
+  const [selectedAvailability, setSelectedAvailability] = useState<'immediately' | 'open'>('open');
   const navigation = useNavigation<NavigationProp<SharedRoutes>>();
   const user = useAppSelector(state => state.auth.user);
   const userRole = useAppSelector(state => state.auth.user?.role);
@@ -142,48 +143,41 @@ export default function CommunicationPrivacyScreen() {
             accessibilityLabel="Go back">
             <ChevronLeft size={scale(26)} color={colors.text} />
           </Pressable>
+          <AppText variant="h3" style={styles.headerTitle} numberOfLines={1}>
+            Communication &amp; privacy
+          </AppText>
         </View>
         <View style={styles.headerDivider} />
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <AppText variant="h1" style={styles.title}>
-            Communication &amp; privacy
-          </AppText>
-
-          <View style={styles.card}>
+          <Pressable
+            onPress={() => setSelectedAvailability('immediately')}
+            style={[styles.card, selectedAvailability === 'immediately' && styles.selectedCard]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedAvailability === 'immediately' }}>
             <AppText style={styles.cardTitle}>Immediately looking for a job</AppText>
             <AppText style={styles.description}>
               Your profile is visible to recruiters &amp; they can reach out to you for job
               opportunities
             </AppText>
             <CommunicationList visibleCount={communicationItems.length} />
-          </View>
+          </Pressable>
 
-          <View style={[styles.card, styles.selectedCard]}>
-            <View style={styles.cardHeading}>
-              <AppText style={[styles.cardTitle, styles.flexTitle]}>
-                Not actively looking but open for job opportunities
-              </AppText>
-              <Pressable
-                onPress={() =>
-                  Alert.alert(
-                    'Manage preferences',
-                    'Communication preferences are not connected to an account settings API yet.',
-                  )
-                }
-                hitSlop={scale(8)}
-                accessibilityRole="button"
-                accessibilityLabel="Manage communication preferences">
-                <AppText style={styles.manageText}>Manage</AppText>
-              </Pressable>
-            </View>
+          <Pressable
+            onPress={() => setSelectedAvailability('open')}
+            style={[styles.card, selectedAvailability === 'open' && styles.selectedCard]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: selectedAvailability === 'open' }}>
+            <AppText style={styles.cardTitle}>
+              Not actively looking but open for job opportunities
+            </AppText>
             <AppText style={styles.description}>
               Your profile is not visible to recruiters but you can still search and apply to jobs
             </AppText>
             <CommunicationList visibleCount={3} />
-          </View>
+          </Pressable>
 
           <View style={styles.lastOption}>
             <View style={styles.lastOptionText}>
@@ -195,18 +189,6 @@ export default function CommunicationPrivacyScreen() {
                 will be reactivated whenever you log in to your account in the future.
               </AppText>
             </View>
-            <Pressable
-              onPress={() =>
-                Alert.alert(
-                  'Manage preferences',
-                  'Communication preferences are not connected to an account settings API yet.',
-                )
-              }
-              hitSlop={scale(8)}
-              accessibilityRole="button"
-              accessibilityLabel="More communication options">
-              <MoreVertical size={scale(22)} color="#151923" />
-            </Pressable>
           </View>
 
           <View style={styles.accountPrivacy}>
@@ -245,8 +227,16 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   backBar: {
     height: vs(56),
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  headerTitle: {
+    flex: 1,
+    color: '#151923',
+    fontSize: font(20),
+    fontWeight: '700',
   },
   backButton: {
     width: scale(36),
@@ -261,15 +251,6 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingBottom: vs(24) },
-  title: {
-    marginHorizontal: spacing.lg,
-    marginTop: vs(18),
-    marginBottom: vs(18),
-    fontSize: font(26),
-    lineHeight: vs(32),
-    fontWeight: '700',
-    color: '#151923',
-  },
   card: {
     marginHorizontal: spacing.md,
     marginBottom: vs(14),
@@ -281,18 +262,12 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderWidth: scale(1.2),
-    borderColor: '#171A20',
+    borderColor: colors.primary,
+    backgroundColor: '#FFF9F4',
     paddingHorizontal: spacing.lg - scale(1.2),
     paddingTop: vs(21),
     paddingBottom: vs(24),
   },
-  cardHeading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  flexTitle: { flex: 1 },
   cardTitle: {
     color: '#171A20',
     fontSize: font(16),
@@ -318,12 +293,7 @@ const styles = StyleSheet.create({
     lineHeight: vs(20),
     flex: 1,
   },
-  manageText: {
-    color: '#3163D9',
-    fontSize: font(15),
-    lineHeight: vs(22),
-    fontWeight: '700',
-  },
+  manageText: { color: colors.primary, fontSize: font(15), fontWeight: '700' },
   lastOption: {
     flexDirection: 'row',
     alignItems: 'flex-start',

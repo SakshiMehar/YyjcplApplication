@@ -1,9 +1,11 @@
 import React from 'react';
-import { Alert, Linking, Platform, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pencil } from 'lucide-react-native';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import { AppButton, AppText } from '../../../components/common';
 import { ScreenLayout } from '../../../layout';
 import { CandidateScreenProps } from '../../../navigation/types';
-import { spacing } from '../../../theme';
+import { colors, scale, spacing } from '../../../theme';
 import { getResumeErrorMessage, useResume } from '../hooks/useResume';
 import type { ResumeDocument } from '../types/resume.types';
 import { getResumeCompletion } from '../utils/resumeValidation';
@@ -13,12 +15,18 @@ import {
 import {
   downloadResumePdf,
   openDownloadedResumePdf,
+  createResumePdf,
 } from '../utils/resumePdf';
 import ProfessionalTemplate from '../templates/ProfessionalTemplate';
 import ModernTemplate from '../templates/ModernTemplate';
 import MinimalTemplate from '../templates/MinimalTemplate';
 import CreativeTemplate from '../templates/CreativeTemplate';
 import ResumeProgress from '../components/ResumeProgress';
+import {
+  useGetJobSeekerProfileQuery,
+  useUpdateJobSeekerProfileMutation,
+  useUploadResumeMutation,
+} from '../../candidate/api/candidateApi';
 
 function TemplatePreview({ resume }: { resume: ResumeDocument }) {
   switch (resume.template) {
@@ -44,6 +52,10 @@ export default function ResumePreviewScreen({
     isError: previewIsError,
   } = useGetResumePreviewQuery(route.params.resumeId);
   const [downloading, setDownloading] = React.useState(false);
+  const [usingTemplate, setUsingTemplate] = React.useState(false);
+  const { data: profile } = useGetJobSeekerProfileQuery();
+  const [uploadResume] = useUploadResumeMutation();
+  const [updateProfile] = useUpdateJobSeekerProfileMutation();
   const previewResume = serverPreview ?? resume;
 
   const startDownload = async () => {
@@ -118,6 +130,50 @@ export default function ResumePreviewScreen({
     navigation.navigate(routeName, { resumeId: resume.id });
   };
 
+  const useResumeForProfile = async () => {
+    if (!previewResume || !resume) return;
+    setUsingTemplate(true);
+    const path = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/profile-resume-${resume.id}.pdf`;
+    try {
+      const pdf = createResumePdf(previewResume);
+      const bytes = Array.from(pdf, character => character.charCodeAt(0));
+      await ReactNativeBlobUtil.fs.writeFile(path, bytes, 'ascii');
+      const form = new FormData();
+      form.append('file', {
+        uri: `file://${path}`,
+        name: `${previewResume.title || 'resume'}.pdf`,
+        type: 'application/pdf',
+      } as unknown as Blob);
+      const uploaded = await uploadResume(form).unwrap();
+      await updateProfile({
+        headline: profile?.headline ?? '',
+        professionalSummary: profile?.professionalSummary ?? '',
+        experience: profile?.experience ?? '',
+        skills: profile?.skills ?? '',
+        resumeUrl: uploaded.resumeUrl,
+        preferredLocation: profile?.preferredLocation ?? '',
+        education: profile?.education ?? '',
+        projects: profile?.projects ?? '',
+        socialMediaLinks: profile?.socialMediaLinks ?? '',
+        certifications: profile?.certifications ?? '',
+        languages: profile?.languages ?? '',
+        joiningDate: profile?.joiningDate ?? '',
+        currentSalary: profile?.currentSalary ?? '',
+        expectedSalary: profile?.expectedSalary ?? '',
+        preferredRole: profile?.preferredRole ?? '',
+      }).unwrap();
+      Alert.alert('Resume added to profile', 'This resume is now attached to your profile.');
+    } catch (error) {
+      Alert.alert(
+        'Could not add resume',
+        getResumeErrorMessage(error, 'Please try again.'),
+      );
+    } finally {
+      setUsingTemplate(false);
+      ReactNativeBlobUtil.fs.unlink(path).catch(() => {});
+    }
+  };
+
   if (loading || !resume || !previewResume) {
     return (
       <ScreenLayout title="Resume preview" showBack>
@@ -129,7 +185,19 @@ export default function ResumePreviewScreen({
   }
 
   return (
-    <ScreenLayout title="Resume preview" showBack>
+    <ScreenLayout
+      title="Resume preview"
+      showBack
+      right={
+        <Pressable
+          onPress={() => edit('PersonalDetails')}
+          disabled={!resume}
+          hitSlop={scale(10)}
+          accessibilityRole="button"
+          accessibilityLabel="Edit this resume">
+          <Pencil size={scale(19)} color={colors.primary} />
+        </Pressable>
+      }>
       <AppText variant="h3" style={styles.heading}>
         {previewResume.title}
       </AppText>
@@ -164,46 +232,13 @@ export default function ResumePreviewScreen({
         }
         style={styles.button}
       />
-      <AppText variant="bodyBold" style={styles.editTitle}>
-        Edit a section
-      </AppText>
-      <View style={styles.editGrid}>
-        <AppButton
-          title="Personal details"
-          variant="ghost"
-          onPress={() => edit('PersonalDetails')}
-        />
-        <AppButton
-          title="Education"
-          variant="ghost"
-          onPress={() => edit('Education')}
-        />
-        <AppButton
-          title="Experience"
-          variant="ghost"
-          onPress={() => edit('Experience')}
-        />
-        <AppButton
-          title="Skills"
-          variant="ghost"
-          onPress={() => edit('Skills')}
-        />
-        <AppButton
-          title="Projects"
-          variant="ghost"
-          onPress={() => edit('Projects')}
-        />
-        <AppButton
-          title="Certifications"
-          variant="ghost"
-          onPress={() => edit('Certifications')}
-        />
-      </View>
       <AppButton
-        title="Done"
+        title="Use this resume in my profile"
         variant="outline"
-        onPress={() => navigation.navigate('Resume')}
-        style={styles.done}
+        onPress={useResumeForProfile}
+        loading={usingTemplate}
+        disabled={usingTemplate}
+        style={styles.button}
       />
     </ScreenLayout>
   );
@@ -213,7 +248,4 @@ const styles = StyleSheet.create({
   heading: { marginBottom: spacing.md },
   preview: { marginTop: spacing.md, marginBottom: spacing.lg },
   button: { marginBottom: spacing.sm },
-  editTitle: { marginTop: spacing.md, marginBottom: spacing.sm },
-  editGrid: { gap: spacing.xs, marginBottom: spacing.md },
-  done: { marginBottom: spacing.md },
 });

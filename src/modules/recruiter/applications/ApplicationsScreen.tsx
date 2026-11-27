@@ -102,7 +102,9 @@ function AppCard({ item, onPress }: { item: RecruiterApplication; onPress: () =>
           ) : null}
           {item.job?.role ? (
             <View style={styles.roleRow}>
-              <BriefcaseBusiness size={scale(11)} color={colors.primary} />
+              <View style={[styles.miniIconSurface, styles.roleIconSurface]}>
+                <BriefcaseBusiness size={scale(11)} color={colors.primary} />
+              </View>
               <AppText variant="caption" style={styles.roleText} numberOfLines={1}>
                 {item.job.role}
               </AppText>
@@ -128,19 +130,19 @@ function AppCard({ item, onPress }: { item: RecruiterApplication; onPress: () =>
       <View style={styles.cardMeta}>
         {profile?.experience ? (
           <View style={styles.metaChip}>
-            <Clock3 size={scale(11)} color={colors.primary} />
+            <View style={styles.miniIconSurface}><Clock3 size={scale(11)} color={colors.primary} /></View>
             <AppText variant="caption" color="textSecondary">{profile.experience}</AppText>
           </View>
         ) : null}
         {profile?.preferredLocation ? (
           <View style={styles.metaChip}>
-            <MapPin size={scale(11)} color={colors.primary} />
+            <View style={styles.miniIconSurface}><MapPin size={scale(11)} color={colors.primary} /></View>
             <AppText variant="caption" color="textSecondary">{profile.preferredLocation}</AppText>
           </View>
         ) : null}
         {appliedDate ? (
           <View style={styles.metaChip}>
-            <CalendarDays size={scale(11)} color={colors.primary} />
+            <View style={styles.miniIconSurface}><CalendarDays size={scale(11)} color={colors.primary} /></View>
             <AppText variant="caption" color="textSecondary">{appliedDate}</AppText>
           </View>
         ) : null}
@@ -220,14 +222,19 @@ export default function ApplicationsScreen() {
         ListHeaderComponent={
           <>
             {/* ── Hero header ── */}
+            <View style={styles.heroShadow}>
             <View style={styles.hero}>
               {/* Decorative bubble */}
               <View style={styles.heroBubble} />
 
               <View style={styles.heroTextRow}>
-                <View>
-                  <AppText variant="caption" style={styles.heroCaption}>Manage Your</AppText>
+                <View style={styles.heroHeading}>
+                  <View style={styles.heroEyebrow}>
+                    <View style={styles.heroEyebrowDot} />
+                    <AppText variant="caption" style={styles.heroCaption}>RECRUITER WORKSPACE</AppText>
+                  </View>
                   <AppText style={styles.heroTitle}>Applicants</AppText>
+                  <AppText variant="caption" style={styles.heroSubtitle}>Review and manage your candidates</AppText>
                 </View>
                 <View style={styles.heroIconWrap}>
                   <Users2 size={scale(28)} color={colors.textOnPrimary} />
@@ -245,11 +252,12 @@ export default function ApplicationsScreen() {
                 <HeaderStat value={stats.selected}    label="Selected"    color="#FCA5A5" />
               </View>
             </View>
+            </View>
 
             {/* ── Search bar ── */}
             <View style={styles.searchWrap}>
               <View style={styles.searchBox}>
-                <Search size={scale(16)} color={colors.textMuted} />
+                <View style={styles.searchIconSurface}><Search size={scale(15)} color={colors.primary} /></View>
                 <TextInput
                   value={search}
                   onChangeText={setSearch}
@@ -289,7 +297,9 @@ export default function ApplicationsScreen() {
           !isLoading ? (
             <View style={styles.empty}>
               <View style={styles.emptyIconWrap}>
-                <Users2 size={scale(36)} color={colors.primary} />
+                <View style={styles.emptyIconInner}>
+                  <Users2 size={scale(36)} color={colors.primary} strokeWidth={2.5} />
+                </View>
               </View>
               <AppText variant="bodyBold" style={styles.emptyTitle}>
                 {isError ? 'Could not load' : 'No applicants found'}
@@ -318,14 +328,25 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
 
   /* Hero */
+  heroShadow: {
+    marginHorizontal: spacing.md,
+    marginBottom: vs(16),
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    shadowColor: '#9A3412',
+    shadowOffset: { width: 0, height: vs(5) },
+    shadowOpacity: 0.22,
+    shadowRadius: scale(12),
+    elevation: 8,
+  },
   hero: {
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.lg,
-    paddingTop: vs(20),
-    paddingBottom: vs(24),
+    paddingTop: vs(16),
+    paddingBottom: vs(18),
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    marginBottom: vs(16),
+    borderRadius: 28,
     overflow: 'hidden',
   },
   heroBubble: {
@@ -338,22 +359,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: vs(18),
+    marginBottom: vs(14),
   },
-  heroCaption: { color: 'rgba(255,255,255,0.75)', fontSize: font(13), marginBottom: vs(2) },
+  heroHeading: { flex: 1, minWidth: 0, paddingRight: spacing.md },
+  heroEyebrow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    paddingHorizontal: spacing.sm,
+    paddingVertical: vs(4),
+    marginBottom: vs(5),
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  heroEyebrowDot: { width: scale(6), height: scale(6), borderRadius: scale(3), backgroundColor: '#FFE0A3' },
+  heroCaption: { color: 'rgba(255,255,255,0.9)', fontSize: font(9), fontWeight: '700', letterSpacing: 1 },
   heroTitle: {
-    color: colors.textOnPrimary, fontSize: font(26), fontWeight: '800',
+    color: colors.textOnPrimary, fontSize: font(28), fontWeight: '800', lineHeight: vs(33),
   },
+  heroSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: font(12), marginTop: vs(3) },
   heroIconWrap: {
-    width: scale(52), height: scale(52), borderRadius: scale(26),
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: scale(56), height: scale(56), borderRadius: scale(28),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#9A3412', shadowOffset: { width: 0, height: vs(4) },
+    shadowOpacity: 0.18, shadowRadius: scale(8), elevation: 4,
   },
   heroStats: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: radius.lg,
-    paddingVertical: vs(12),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    paddingVertical: vs(10),
     alignItems: 'center',
   },
   headerStat: { flex: 1, alignItems: 'center', gap: vs(3) },
@@ -371,6 +414,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, height: vs(46),
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  },
+  searchIconSurface: {
+    width: scale(30), height: scale(30), borderRadius: scale(15),
+    backgroundColor: '#FFF1E6', borderWidth: 1, borderColor: '#FFE0C2',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#9A3412', shadowOffset: { width: 0, height: vs(2) },
+    shadowOpacity: 0.14, shadowRadius: scale(3), elevation: 2,
   },
   searchInput: { flex: 1, fontSize: font(14), color: colors.text, padding: 0 },
 
@@ -428,6 +478,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderWidth: 1, borderColor: colors.primarySoft,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(2) },
+    shadowOpacity: 0.18, shadowRadius: scale(3), elevation: 3,
   },
   cardDivider: {
     height: StyleSheet.hairlineWidth,
@@ -435,7 +487,15 @@ const styles = StyleSheet.create({
     marginVertical: vs(12),
   },
   cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  metaChip: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
+  metaChip: { flexDirection: 'row', alignItems: 'center', gap: scale(6) },
+  miniIconSurface: {
+    width: scale(22), height: scale(22), borderRadius: scale(11),
+    backgroundColor: '#FFF5EB', borderWidth: 1, borderColor: '#FFE6D1',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#9A3412', shadowOffset: { width: 0, height: vs(1) },
+    shadowOpacity: 0.14, shadowRadius: scale(2), elevation: 2,
+  },
+  roleIconSurface: { width: scale(20), height: scale(20), borderRadius: scale(10) },
   skillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: vs(10) },
   skillChip: {
     backgroundColor: colors.primaryLight,
@@ -451,6 +511,13 @@ const styles = StyleSheet.create({
     width: scale(72), height: scale(72), borderRadius: scale(36),
     backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primarySoft,
     alignItems: 'center', justifyContent: 'center', marginBottom: vs(8),
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(5) },
+    shadowOpacity: 0.2, shadowRadius: scale(8), elevation: 6,
+  },
+  emptyIconInner: {
+    width: '82%', height: '82%', borderRadius: scale(30),
+    backgroundColor: '#FFF8F0', borderWidth: 1, borderColor: '#FFE1C4',
+    alignItems: 'center', justifyContent: 'center',
   },
   emptyTitle: { marginTop: vs(4) },
   emptySub: { textAlign: 'center' },

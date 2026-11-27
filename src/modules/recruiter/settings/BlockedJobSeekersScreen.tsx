@@ -116,6 +116,7 @@ export default function BlockedJobSeekersScreen() {
           accessibilityLabel="Go back">
           <ChevronLeft size={scale(22)} color={colors.text} />
         </Pressable>
+        <AppText style={styles.headerTitle}>Blocked Job Seekers</AppText>
       </View>
 
       <ScrollView
@@ -124,7 +125,6 @@ export default function BlockedJobSeekersScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 
-        <AppText style={styles.title}>Blocked Job Seekers</AppText>
         <AppText style={styles.subtitle}>
           Job seekers you block will not be able to see your job listings or contact you.
         </AppText>
@@ -228,11 +228,13 @@ export default function BlockedJobSeekersScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   header: {
-    height: vs(56), justifyContent: 'center',
+    height: vs(56), flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  headerTitle: { color: colors.text, fontSize: font(20), fontWeight: '700', flex: 1 },
   backBtn: {
     width: scale(36), height: scale(36),
     alignItems: 'center', justifyContent: 'center',
@@ -242,10 +244,6 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: vs(32) },
-  title: {
-    marginTop: vs(20), color: colors.text,
-    fontSize: font(24), fontWeight: '800', marginBottom: vs(6),
-  },
   subtitle: {
     color: colors.textSecondary, fontSize: font(14),
     lineHeight: vs(20), marginBottom: vs(28),

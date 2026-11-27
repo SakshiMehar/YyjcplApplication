@@ -157,7 +157,7 @@ export const sharedApi = baseApi.injectEndpoints({
       query: () => '/complaints',
       providesTags: ['Complaint'],
     }),
-    raiseComplaint: build.mutation<Complaint, { subject: string; description: string }>({
+    raiseComplaint: build.mutation<Complaint, { complaintText: string }>({
       query: body => ({ url: '/complaints', method: 'POST', body }),
       invalidatesTags: ['Complaint'],
     }),

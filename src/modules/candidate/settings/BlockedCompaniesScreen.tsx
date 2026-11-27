@@ -147,6 +147,7 @@ export default function BlockedCompaniesScreen() {
           accessibilityLabel="Go back">
           <ChevronLeft size={scale(22)} color={colors.text} />
         </Pressable>
+        <AppText style={styles.headerTitle}>Blocked companies</AppText>
       </View>
 
       <ScrollView
@@ -156,7 +157,6 @@ export default function BlockedCompaniesScreen() {
         showsVerticalScrollIndicator={false}>
 
         {/* ── Title ── */}
-        <AppText style={styles.title}>Blocked companies</AppText>
         <AppText style={styles.subtitle}>
           Recruiters from companies you block will not be able to see your profile.
         </AppText>
@@ -269,11 +269,14 @@ const styles = StyleSheet.create({
   /* Header */
   header: {
     height: vs(56),
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
+  headerTitle: { color: colors.text, fontSize: font(20), fontWeight: '700', flex: 1 },
   backBtn: {
     width: scale(36), height: scale(36),
     alignItems: 'center', justifyContent: 'center',
@@ -286,13 +289,6 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: vs(32) },
 
   /* Title */
-  title: {
-    marginTop: vs(20),
-    color: colors.text,
-    fontSize: font(24),
-    fontWeight: '800',
-    marginBottom: vs(6),
-  },
   subtitle: {
     color: colors.textSecondary,
     fontSize: font(14),

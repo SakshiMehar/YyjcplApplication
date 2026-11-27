@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { MoreVertical } from 'lucide-react-native';
 import Pressable from '../../../components/common/InteractivePressable';
@@ -17,10 +17,14 @@ export default function ResumeCard({
   onOpen: () => void;
   onDelete: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const template = RESUME_TEMPLATES.find(item => item.id === resume.template);
   return (
     <Pressable
       onPress={onOpen}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={hovered && styles.hovered}
       accessibilityRole="button"
       accessibilityLabel={`Edit ${resume.title}`}
     >
@@ -63,7 +67,16 @@ export default function ResumeCard({
 }
 
 const styles = StyleSheet.create({
-  card: { marginBottom: spacing.md },
+  card: {
+    marginBottom: spacing.md,
+    borderColor: '#F1E7DF',
+    boxShadow: '0px 5px 16px rgba(28, 25, 23, 0.11)',
+  },
+  hovered: {
+    transform: [{ translateY: -scale(2) }],
+    borderColor: colors.primarySoft,
+    boxShadow: '0px 9px 22px rgba(28, 25, 23, 0.16)',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

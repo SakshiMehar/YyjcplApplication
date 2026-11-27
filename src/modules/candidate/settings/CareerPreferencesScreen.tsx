@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  ImageBackground,
   Keyboard,
   Pressable,
   ScrollView,
@@ -135,7 +136,10 @@ export default function CareerPreferencesScreen({
 
   return (
     <ScreenLayout showHeader={false} padded={false} mainBackground={colors.background}>
-      <View style={styles.page}>
+      <ImageBackground
+        source={require('../../../assets/illustrations/interview screen.png')}
+        resizeMode="cover"
+        style={styles.page}>
         <View style={styles.header}>
           <Pressable
             onPress={navigation.goBack}
@@ -325,7 +329,7 @@ export default function CareerPreferencesScreen({
             )}
           </Pressable>
         </View>
-      </View>
+      </ImageBackground>
     </ScreenLayout>
   );
 }
@@ -333,7 +337,7 @@ export default function CareerPreferencesScreen({
 const BLUE = '#2F5FEA';
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#FFFFFF' },
+  page: { flex: 1 },
   header: {
     minHeight: vs(56),
     flexDirection: 'row',

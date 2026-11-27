@@ -61,13 +61,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: shadows.sm,
   },
   primary: {
     backgroundColor: colors.primary,
     backgroundImage: gradientPresets.primary,
     boxShadow: shadows.glow(),
   },
-  outline: { borderWidth: 1, borderColor: colors.primary, backgroundColor: 'transparent' },
+  outline: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
+    boxShadow: '0px 4px 12px rgba(249, 115, 22, 0.14)',
+  },
   ghost: { backgroundColor: 'transparent' },
   onDark: {
     borderWidth: 1.5,

@@ -173,7 +173,7 @@ export default function RegisterScreen({ navigation }: AuthScreenProps<'Register
             onChangeText={onChange}
             onBlur={onBlur}
             error={fieldState.error?.message}
-            hint="At least 8 characters, with a letter and a number"
+            hint="Password must have at least 8 characters, one capital letter, one small letter, one number, and one special character."
           />
         )}
       />

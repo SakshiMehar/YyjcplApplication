@@ -189,6 +189,17 @@ export const authApi = baseApi.injectEndpoints({
         headers: { 'Content-Type': 'application/json' },
       }),
     }),
+    updateContactDetails: build.mutation<
+      void,
+      { currentPassword: string; newEmail: string; newMobile: string }
+    >({
+      query: body => ({
+        url: '/auth/contact-details',
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: ['Me'],
+    }),
     /** Permanently deletes the signed-in account after an explicit confirmation. */
     deleteAccount: build.mutation<void, { confirmation: 'DELETE' }>({
       query: body => ({
@@ -240,6 +251,7 @@ export const {
   useResetPasswordMutation,
   useGetMeQuery,
   useChangePasswordMutation,
+  useUpdateContactDetailsMutation,
   useDeleteAccountMutation,
   useDeactivateAccountMutation,
   useReactivateAccountMutation,

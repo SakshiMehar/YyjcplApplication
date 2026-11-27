@@ -27,7 +27,6 @@ import {
   Monitor,
   Search,
   SlidersHorizontal,
-  Star,
   Users2,
   Wifi,
   Zap,
@@ -107,11 +106,21 @@ function FeaturedJobCard({ job, onApply, isApplying, isApplied, onPress }: {
   isApplied: boolean;
   onPress: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const initials = (job.companyName ?? '')
     .split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase();
 
   return (
-    <Pressable onPress={onPress} style={styles.featuredCard} accessibilityRole="button">
+    <Pressable
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed }) => [
+        styles.featuredCard,
+        hovered && styles.featuredCardHovered,
+        pressed && styles.featuredCardPressed,
+      ]}
+      accessibilityRole="button">
       {/* Labels */}
       <View style={styles.featuredTopRow}>
         <View style={styles.featuredJobBadge}>
@@ -133,8 +142,6 @@ function FeaturedJobCard({ job, onApply, isApplying, isApplied, onPress }: {
           <AppText variant="h3" style={styles.featuredRole} numberOfLines={1}>{job.role}</AppText>
           <View style={styles.featuredCompanyRow}>
             <AppText variant="caption" style={styles.featuredCompany}>{job.companyName}</AppText>
-            <Star size={scale(11)} color="#F59E0B" fill="#F59E0B" />
-            <AppText variant="caption" style={styles.featuredRating}>4.6</AppText>
           </View>
         </View>
       </View>
@@ -223,14 +230,6 @@ function JobCard({ job, onPress, onApply, isApplying, isApplied, onSave, isSavin
           <BadgeCheck size={scale(11)} color={colors.success} />
           <AppText variant="caption" style={styles.matchText}>{matchPct}% Match</AppText>
         </View>
-      </View>
-
-      {/* Rating */}
-      <View style={styles.ratingRow}>
-        <Star size={scale(11)} color="#F59E0B" fill="#F59E0B" />
-        <AppText variant="caption" color="textSecondary" style={{ marginLeft: scale(3) }}>
-          4.{(Number(job.id) % 9) + 1} ({100 + (Number(job.id) % 900)} reviews)
-        </AppText>
       </View>
 
       {/* Meta */}
@@ -652,9 +651,18 @@ const styles = StyleSheet.create({
     marginBottom: vs(20),
     borderRadius: 16,
     backgroundColor: colors.primary,
+    backgroundImage: 'linear-gradient(135deg, #FF9D45 0%, #F97316 52%, #D9480F 100%)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.32)',
     padding: spacing.lg,
     overflow: 'hidden',
+    boxShadow: '0px 8px 22px rgba(234, 88, 12, 0.28)',
   },
+  featuredCardHovered: {
+    transform: [{ translateY: -scale(2) }],
+    boxShadow: '0px 13px 28px rgba(234, 88, 12, 0.38)',
+  },
+  featuredCardPressed: { transform: [{ scale: 0.99 }], opacity: 0.96 },
   featuredTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -690,7 +698,6 @@ const styles = StyleSheet.create({
   featuredRole: { color: colors.textOnPrimary, marginBottom: vs(3) },
   featuredCompanyRow: { flexDirection: 'row', alignItems: 'center', gap: scale(4) },
   featuredCompany: { color: 'rgba(255,255,255,0.85)' },
-  featuredRating: { color: 'rgba(255,255,255,0.85)' },
   featuredMeta: {
     flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: vs(14),
   },
@@ -708,6 +715,7 @@ const styles = StyleSheet.create({
     flex: 1, backgroundColor: colors.primaryDark,
     paddingVertical: vs(8), borderRadius: radius.pill,
     alignItems: 'center',
+    boxShadow: '0px 4px 10px rgba(120, 45, 8, 0.22)',
   },
   applyNowBtnDisabled: { opacity: 0.6 },
   applyNowBtnApplied: { backgroundColor: '#7C3AED', opacity: 1 },
@@ -748,7 +756,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm, paddingVertical: vs(3), flexShrink: 0,
   },
   matchText: { color: colors.success, fontWeight: '700', fontSize: font(11) },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: vs(8) },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm, marginBottom: vs(8) },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
   skillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: vs(10) },

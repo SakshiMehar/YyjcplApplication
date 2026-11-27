@@ -7,7 +7,7 @@ type Props = ViewProps & { onPress?: () => void };
 
 export default function Card({ style, onPress, children, ...rest }: Props) {
   return (
-    <Pressable onPress={onPress} disabled={!onPress} style={[styles.card, style]} {...rest}>
+    <Pressable onPress={onPress} style={[styles.card, style]} {...rest}>
       {children}
     </Pressable>
   );
@@ -21,6 +21,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    boxShadow: shadows.sm,
+    boxShadow: shadows.md,
   },
 });

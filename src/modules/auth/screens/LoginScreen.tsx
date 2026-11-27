@@ -13,7 +13,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronRight, LockKeyhole, ShieldCheck, Smartphone, UserPlus } from 'lucide-react-native';
+import { ChevronRight, LockKeyhole, Smartphone, UserPlus } from 'lucide-react-native';
 import { AppInput, AppText, PasswordInput } from '../../../components/common';
 import Pressable from '../../../components/common/InteractivePressable';
 import { BrandLogo } from '../../../components/illustrations';
@@ -55,8 +55,8 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
 
   const cardTop = height * 0.46;
   const termsBottom = Math.max(insets.bottom + vs(4), vs(10));
-  // leaves room under the card for the "Admin Login" button + terms line
-  const cardBottom = Math.max(insets.bottom + vs(80), height * 0.105);
+  // Leaves room beneath the card for the terms line.
+  const cardBottom = Math.max(insets.bottom + vs(48), height * 0.075);
   const [brandName, ...brandSuffix] = APP_NAME.split(' ');
 
   const { control, handleSubmit } = useForm<LoginForm>({
@@ -65,6 +65,10 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
   });
 
   const completeLogin = async (token: string, user: User) => {
+    if (user.role === USER_ROLES.ADMIN) {
+      Alert.alert('Admin access unavailable', 'Admin panel access is disabled in this version of the app.');
+      return;
+    }
     if (!token) {
       Alert.alert('Login failed', 'The server did not return a session token.');
       return;
@@ -363,19 +367,6 @@ export default function LoginScreen({ navigation }: AuthScreenProps<'Login'>) {
             </View>
           </Appear>
 
-          <View style={[styles.adminRow, { bottom: termsBottom + vs(22) }]}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Admin login"
-              hitSlop={scale(6)}
-              style={({ pressed }) => [styles.adminButton, pressed && styles.adminButtonPressed]}>
-              <ShieldCheck size={scale(15)} color={colors.primary} strokeWidth={2.4} />
-              <AppText variant="caption" style={styles.adminButtonText}>
-                Admin Login
-              </AppText>
-            </Pressable>
-          </View>
-
           <AppText
             variant="caption"
             color="textOnPrimary"
@@ -535,27 +526,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.9)',
   },
   createAccountText: { color: '#F65F00', fontWeight: '700', fontSize: scale(15) },
-  adminRow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 3,
-    alignItems: 'center',
-  },
-  adminButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(6),
-    height: vs(30),
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,106,0,0.35)',
-    boxShadow: `0px ${scale(3)}px ${scale(8)}px rgba(115, 47, 0, 0.18)`,
-  },
-  adminButtonPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  adminButtonText: { color: '#F65F00', fontWeight: '700', fontSize: scale(12.5) },
   terms: {
     position: 'absolute',
     left: spacing.lg,

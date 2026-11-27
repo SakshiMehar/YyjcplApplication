@@ -17,12 +17,10 @@ import {
   Bookmark,
   BriefcaseBusiness,
   Clock3,
-  Compass,
   FileText,
   IndianRupee,
   MapPin,
   Search,
-  Star,
   UserRound,
   BadgeCheck,
   Bell,
@@ -125,14 +123,6 @@ function HomeJobCard({
           <BadgeCheck size={scale(12)} color={colors.success} />
           <AppText variant="caption" style={styles.matchText}>{matchPct}% Match</AppText>
         </View>
-      </View>
-
-      {/* Rating row */}
-      <View style={styles.jobRatingRow}>
-        <Star size={scale(12)} color="#F59E0B" fill="#F59E0B" />
-        <AppText variant="caption" color="textSecondary" style={{ marginLeft: scale(3) }}>
-          4.{(Number(job.id) % 10)} (1.2k reviews)
-        </AppText>
       </View>
 
       {/* Meta chips */}
@@ -238,6 +228,7 @@ export default function CandidateHomeScreen() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedJobIds, setSavedJobIds] = useState<Set<string>>(() => new Set());
   const [searchText, setSearchText] = useState('');
+  const [heroHovered, setHeroHovered] = useState(false);
   const [submittedKeyword, setSubmittedKeyword] = useState('');
 
   const jobsQuery = useGetRecommendedJobsQuery();
@@ -335,7 +326,6 @@ export default function CandidateHomeScreen() {
     { key: 'saved',   icon: <Bookmark size={scale(22)} color={colors.primary} />,  label: 'Saved Jobs',      onPress: () => navigation.navigate('SavedJobs') },
     { key: 'apps',    icon: <FileText  size={scale(22)} color={colors.primary} />,  label: 'Applications',    onPress: () => openTab('MyApplications') },
     { key: 'profile', icon: <UserRound size={scale(22)} color={colors.primary} />,  label: 'Profile',         onPress: () => openTab('CandidateProfile') },
-    { key: 'career',  icon: <Compass   size={scale(22)} color={colors.primary} />,  label: 'Career Services', onPress: () => Alert.alert('Coming Soon') },
   ];
 
   return (
@@ -415,7 +405,13 @@ export default function CandidateHomeScreen() {
         {/* ── Hero banner ── */}
         <Pressable
           onPress={() => openTab('JobSearch')}
-          style={styles.heroBanner}
+          onHoverIn={() => setHeroHovered(true)}
+          onHoverOut={() => setHeroHovered(false)}
+          style={({ pressed }) => [
+            styles.heroBanner,
+            heroHovered && styles.heroBannerHovered,
+            pressed && styles.heroBannerPressed,
+          ]}
           accessibilityLabel="Find your dream job">
           {/* Background gradient-style */}
           <View style={styles.heroBannerBg} />
@@ -585,6 +581,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     paddingHorizontal: spacing.md,
     height: vs(46),
+    boxShadow: '0px 3px 10px rgba(28, 25, 23, 0.08)',
   },
   searchInput: {
     flex: 1,
@@ -601,6 +598,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
+    boxShadow: '0px 4px 12px rgba(249, 115, 22, 0.18)',
   },
   filterIcon: { gap: vs(3) },
   filterLine: {
@@ -618,10 +616,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
+    backgroundImage: 'linear-gradient(120deg, #FF9D45 0%, #F97316 58%, #E4560B 100%)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    boxShadow: '0px 8px 20px rgba(234, 88, 12, 0.27)',
   },
+  heroBannerHovered: {
+    transform: [{ translateY: -scale(2) }],
+    boxShadow: '0px 12px 26px rgba(234, 88, 12, 0.36)',
+  },
+  heroBannerPressed: { transform: [{ scale: 0.985 }], opacity: 0.94 },
   heroBannerBg: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: colors.primary,
+    backgroundImage: 'radial-gradient(circle at 85% 10%, rgba(255,255,255,0.28), transparent 38%)',
   },
   heroContent: {
     flex: 1,
@@ -770,11 +777,6 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   matchText: { color: colors.success, fontWeight: '700', fontSize: font(11) },
-  jobRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: vs(8),
-  },
   jobMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',

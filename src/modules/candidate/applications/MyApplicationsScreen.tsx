@@ -123,7 +123,9 @@ function ApplicationCard({
       <View style={styles.cardTop}>
         {/* Avatar */}
         <View style={styles.cardAvatar}>
-          <BriefcaseBusiness size={scale(20)} color={colors.primary} />
+          <View style={styles.cardAvatarIconSurface}>
+            <BriefcaseBusiness size={scale(20)} color={colors.primary} strokeWidth={2.5} />
+          </View>
         </View>
 
         {/* Title + company */}
@@ -135,13 +137,13 @@ function ApplicationCard({
           <View style={styles.cardMeta}>
             {location ? (
               <View style={styles.metaItem}>
-                <MapPin size={scale(11)} color={colors.textMuted} />
+                <View style={styles.metaIconSurface}><MapPin size={scale(11)} color={colors.primary} /></View>
                 <AppText variant="caption" color="textSecondary">{location}</AppText>
               </View>
             ) : null}
             {appliedAt ? (
               <View style={styles.metaItem}>
-                <CalendarDays size={scale(11)} color={colors.textMuted} />
+                <View style={styles.metaIconSurface}><CalendarDays size={scale(11)} color={colors.primary} /></View>
                 <AppText variant="caption" color="textSecondary">{appliedAt}</AppText>
               </View>
             ) : null}
@@ -151,7 +153,7 @@ function ApplicationCard({
         {/* Status badge + arrow */}
         <View style={styles.cardRight}>
           <View style={[styles.statusBadge, { backgroundColor: si.bg }]}>
-            {si.icon}
+            <View style={styles.statusIconSurface}>{si.icon}</View>
             <AppText variant="caption" style={[styles.statusText, { color: si.text }]}>
               {si.label}
             </AppText>
@@ -164,7 +166,7 @@ function ApplicationCard({
 
       {/* Status message */}
       <View style={[styles.statusMsg, { backgroundColor: si.messageBg }]}>
-        {si.messageIcon}
+        <View style={styles.messageIconSurface}>{si.messageIcon}</View>
         <AppText variant="caption" color="textSecondary" style={styles.statusMsgText}>
           {si.message}
         </AppText>
@@ -278,7 +280,9 @@ export default function MyApplicationsScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.emptyWrap}>
-              <BriefcaseBusiness size={scale(52)} color={colors.border} />
+              <View style={styles.emptyIconSurface}>
+                <BriefcaseBusiness size={scale(38)} color={colors.primary} strokeWidth={2.5} />
+              </View>
               <AppText variant="bodyBold" style={styles.emptyTitle}>
                 {isError ? 'Could not load applications' : 'No applications yet'}
               </AppText>
@@ -344,6 +348,7 @@ const styles = StyleSheet.create({
   },
   pageHeaderLeft: {
     flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     paddingRight: spacing.sm,
     paddingBottom: vs(24),
@@ -352,15 +357,17 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: vs(6),
   },
-  titleApplied: { flexShrink: 1, fontSize: font(28), fontWeight: '800', color: colors.text },
-  titleJobs: { flexShrink: 1, fontSize: font(28), fontWeight: '800', color: colors.primary },
+  titleApplied: { flexShrink: 1, fontSize: font(24), fontWeight: '800', color: colors.text },
+  titleJobs: { flexShrink: 1, fontSize: font(24), fontWeight: '800', color: colors.primary },
   heroSubtitle: { color: colors.textSecondary, fontSize: font(13) },
   illustration: {
-    width: scale(150),
-    height: vs(195),
+    width: '38%',
+    maxWidth: scale(132),
+    height: vs(180),
+    flexShrink: 0,
     zIndex: 1,
     marginBottom: 0,
     alignSelf: 'flex-end',
@@ -389,7 +396,10 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: vs(40), backgroundColor: colors.border },
   statIconWrap: {
     width: scale(36), height: scale(36), borderRadius: scale(18),
-    backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFF8F0', borderWidth: 1, borderColor: '#FFE1C4',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(3) },
+    shadowOpacity: 0.18, shadowRadius: scale(5), elevation: 4,
   },
   statValue: { fontSize: font(18) },
   statLabel: { fontSize: font(10), textAlign: 'center' },
@@ -431,6 +441,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.primarySoft,
     alignItems: 'center', justifyContent: 'center',
     flexShrink: 0,
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(3) },
+    shadowOpacity: 0.16, shadowRadius: scale(5), elevation: 3,
+  },
+  cardAvatarIconSurface: {
+    width: '78%', height: '78%', borderRadius: radius.sm,
+    backgroundColor: '#FFF9F2', borderWidth: 1, borderColor: '#FFE4CA',
+    alignItems: 'center', justifyContent: 'center',
   },
   cardTitles: { flex: 1, gap: vs(2) },
   cardMeta: {
@@ -439,7 +456,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: vs(4),
   },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: scale(3) },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: scale(5) },
+  metaIconSurface: {
+    width: scale(20), height: scale(20), borderRadius: scale(10),
+    backgroundColor: '#FFF5EB', borderWidth: 1, borderColor: '#FFE7D2',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#9A3412', shadowOffset: { width: 0, height: vs(1) },
+    shadowOpacity: 0.14, shadowRadius: scale(2), elevation: 2,
+  },
   cardRight: {
     alignItems: 'flex-end',
     gap: vs(8),
@@ -453,12 +477,20 @@ const styles = StyleSheet.create({
     paddingVertical: vs(4),
     borderRadius: radius.pill,
   },
+  statusIconSurface: {
+    width: scale(20), height: scale(20), borderRadius: scale(10),
+    backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: vs(1) },
+    shadowOpacity: 0.12, shadowRadius: scale(2), elevation: 1,
+  },
   statusText: { fontWeight: '700', fontSize: font(11) },
   arrowCircle: {
     width: scale(28), height: scale(28), borderRadius: scale(14),
     backgroundColor: colors.primaryLight,
     borderWidth: 1, borderColor: colors.primarySoft,
     alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(2) },
+    shadowOpacity: 0.18, shadowRadius: scale(4), elevation: 3,
   },
   statusMsg: {
     flexDirection: 'row',
@@ -467,11 +499,25 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.md,
   },
+  messageIconSurface: {
+    width: scale(24), height: scale(24), borderRadius: scale(12),
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#FFE6CE',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(1) },
+    shadowOpacity: 0.14, shadowRadius: scale(2), elevation: 2,
+  },
   statusMsgText: { flex: 1 },
 
   /* Misc */
   loaderWrap: { alignItems: 'center', paddingVertical: vs(40) },
   emptyWrap: { alignItems: 'center', paddingVertical: vs(48), paddingHorizontal: spacing.xl },
+  emptyIconSurface: {
+    width: scale(76), height: scale(76), borderRadius: scale(38),
+    backgroundColor: '#FFF8F0', borderWidth: 1, borderColor: '#FFE1C4',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#C2410C', shadowOffset: { width: 0, height: vs(5) },
+    shadowOpacity: 0.2, shadowRadius: scale(8), elevation: 6,
+  },
   emptyTitle: { marginTop: vs(12) },
   emptySub: { textAlign: 'center', marginTop: vs(6) },
 });

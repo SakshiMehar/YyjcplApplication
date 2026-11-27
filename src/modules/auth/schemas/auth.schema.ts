@@ -5,8 +5,10 @@ const phone = z.string().trim().regex(PHONE_REGEX, 'Enter a valid 10-digit mobil
 const strongPassword = z
   .string()
   .min(8, 'Password must be at least 8 characters')
-  .regex(/[A-Za-z]/, 'Password must include a letter')
-  .regex(/\d/, 'Password must include a number');
+  .regex(/[A-Z]/, 'Password must include at least one capital letter')
+  .regex(/[a-z]/, 'Password must include at least one small letter')
+  .regex(/\d/, 'Password must include at least one number')
+  .regex(/[^A-Za-z0-9]/, 'Password must include at least one special character');
 
 export type LoginChannel = 'phone' | 'email';
 

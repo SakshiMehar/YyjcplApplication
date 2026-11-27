@@ -107,8 +107,12 @@ export default function InteractivePressable({
 
 const styles = StyleSheet.create({
   clipFill: { overflow: 'hidden' },
-  hovered: { opacity: 0.9 },
-  pressed: { opacity: 0.78 },
+  hovered: {
+    opacity: 0.97,
+    transform: [{ translateY: -1 }],
+    boxShadow: '0px 6px 16px rgba(28, 25, 23, 0.16)',
+  },
+  pressed: { opacity: 0.86, transform: [{ scale: 0.985 }] },
   radialFill: {
     position: 'absolute',
     left: 0,

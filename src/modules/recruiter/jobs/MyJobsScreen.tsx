@@ -118,18 +118,26 @@ export default function MyJobsScreen() {
 
   return (
     <ScreenLayout
-      title="My Jobs"
-      showBack={false}
+      showHeader={false}
       edges={['top']}
       scroll={false}
       padded={false}
       rootStyle={styles.transparentRoot}
-      mainBackground="transparent"
-      right={
-        <Pressable onPress={() => navigation.navigate('PostJob')} hitSlop={scale(10)}>
-          <Plus size={sizes.iconMd} color={colors.primary} />
-        </Pressable>
-      }>
+      mainBackground="transparent">
+      <View style={styles.screenContent}>
+      <View style={styles.screenHeader}>
+        <View style={styles.headerSide} />
+        <AppText variant="h3" style={styles.screenTitle}>My Jobs</AppText>
+        <View style={[styles.headerSide, styles.headerRight]}>
+          <Pressable
+            onPress={() => navigation.navigate('PostJob')}
+            style={styles.addButton}
+            accessibilityRole="button"
+            accessibilityLabel="Post a job">
+            <Plus size={sizes.iconMd} color={colors.primary} />
+          </Pressable>
+        </View>
+      </View>
       {isLoading ? (
         <SkeletonList count={3} variant="card" />
       ) : isError ? (
@@ -162,12 +170,30 @@ export default function MyJobsScreen() {
           )}
         </ScrollView>
       )}
+      </View>
     </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   transparentRoot: { backgroundColor: 'transparent' },
+  screenContent: { flex: 1 },
+  screenHeader: {
+    minHeight: sizes.headerHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: 'transparent',
+  },
+  headerSide: { width: scale(40), alignItems: 'flex-start' },
+  headerRight: { alignItems: 'flex-end' },
+  screenTitle: { flex: 1, textAlign: 'center' },
+  addButton: {
+    width: scale(40), height: scale(40), borderRadius: scale(20),
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(249,115,22,0.10)',
+    borderWidth: 1, borderColor: 'rgba(249,115,22,0.16)',
+  },
   content: { padding: spacing.lg, paddingBottom: vs(96) },
   state: { padding: spacing.lg, gap: spacing.md },
   card: {},
