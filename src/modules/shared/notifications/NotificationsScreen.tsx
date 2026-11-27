@@ -175,11 +175,14 @@ export default function NotificationsScreen() {
 
   const handlePress = async (item: AppNotification) => {
     if (item.read !== true) {
+      // Update the row and unread badge immediately; persist the change in the
+      // background so a temporary API failure does not interrupt the tap.
+      setReadIds(previous => new Set(previous).add(String(item.id)));
       try {
         await markRead(item.id).unwrap();
-        setReadIds(previous => new Set(previous).add(String(item.id)));
       } catch {
-        Alert.alert('Could not mark notification as read', 'Please try again.');
+        // The optimistic local read state remains visible; avoid blocking the user
+        // with an alert when the read receipt endpoint is unavailable.
       }
     }
   };

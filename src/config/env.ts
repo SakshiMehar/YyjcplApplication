@@ -7,8 +7,9 @@
  *
  * Replace the production URL with your real backend URL before release.
  */
-const DEV_API_URL = 'https://impish-earwig-epiphany.ngrok-free.dev';
-const PROD_API_URL = 'https://api.yyjcpl.com';
+// const DEV_API_URL = 'https://impish-earwig-epiphany.ngrok-free.dev';
+const DEV_API_URL = 'https://job.yyjcpl.com';
+const PROD_API_URL = 'https://job.yyjcpl.com';
 
 export const ENV = {
   API_BASE_URL: `${__DEV__ ? DEV_API_URL : PROD_API_URL}/api`,
