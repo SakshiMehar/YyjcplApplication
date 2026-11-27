@@ -18,7 +18,7 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
  *   Login (mobile)        → OTP → app
  *   Login (email)         → password → app            (Forgot Password → OTP → Reset Password)
  *   Create an account     → Select Role → Register → OTP → app
- *   Admin Login           → Admin ID + password → Admin panel
+ *   Admin access is not registered in this application build.
  */
 export default function AuthNavigator() {
   return (

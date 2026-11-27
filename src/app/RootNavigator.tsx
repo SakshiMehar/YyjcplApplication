@@ -14,7 +14,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
  *   not logged in  -> Auth (role select, login, OTP)
  *   CANDIDATE      -> Candidate app
  *   RECRUITER      -> Recruiter app
- *   ADMIN          -> Admin panel (entered via "Admin Login" on the login screen)
+ *   ADMIN          -> Auth (admin panel is disabled in this application build)
  */
 export default function RootNavigator() {
   const dispatch = useAppDispatch();
